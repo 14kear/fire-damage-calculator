@@ -14,7 +14,7 @@ class Handler(SimpleHTTPRequestHandler):
         self.send_response(status);self.send_header('Content-Type','application/json; charset=utf-8');self.send_header('Content-Length',str(len(body)));self.end_headers();self.wfile.write(body)
     def do_GET(self):
         if self.path=='/api/health':self.send_json({'ok':True})
-        elif self.path=='/report.docx' and (ROOT/'Отчёт.docx').exists():
+        elif self.path.split('?',1)[0]=='/report.docx' and (ROOT/'Отчёт.docx').exists():
             b=(ROOT/'Отчёт.docx').read_bytes();self.send_response(200);self.send_header('Content-Type','application/vnd.openxmlformats-officedocument.wordprocessingml.document');self.send_header('Content-Length',str(len(b)));self.end_headers();self.wfile.write(b)
         else:super().do_GET()
     def do_POST(self):
