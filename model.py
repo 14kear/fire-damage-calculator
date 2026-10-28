@@ -164,7 +164,8 @@ def simulate(raw, verify=True):
     if np.any(outside): warnings.append('Есть выход за диапазон статистики 2015–2022: это экстраполяция регрессий.')
     if np.any(ff<0): warnings.append('Есть отрицательные значения внешних факторов. Проверьте их интерпретацию и формулы.')
     if difference is not None and difference>1e-5: warnings.append('При удвоении числа шагов изменение превышает 1e−5. Увеличьте число шагов.')
-    canonical=p['plus']==PLUS and p['minus']==MINUS and p['polynomials']==DEFAULT['polynomials']
+    # NumPy backends may round refitted coefficients differently; both source and current fits are canonical.
+    canonical=p['plus']==PLUS and p['minus']==MINUS and (p['polynomials']==DEFAULT['polynomials'] or p['polynomials']==DATA['defaults']['polynomials'])
     comparison=None
     if abs(T-.7)<1e-12 and np.allclose(p['initial'],DATA['normalized'][0],rtol=0,atol=1e-12):
         observed=np.array(DATA['normalized']).T
