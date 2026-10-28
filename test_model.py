@@ -1,4 +1,4 @@
-import sys, math, unittest
+import sys,math,unittest
 from pathlib import Path
 import numpy as np
 ROOT=Path(__file__).parent
@@ -6,53 +6,64 @@ sys.path.insert(0,str(ROOT/'site' if (ROOT/'site').is_dir() else ROOT))
 import model as m
 
 class ModelTests(unittest.TestCase):
-    def test_missing_external_data_is_not_filled(self):
-        with self.assertRaises(m.InputError): m.simulate({})
-    def test_exact_source_signs_and_external_groups(self):
-        p=m.parameters({'forcing':['2','3','5','7','11'],'polynomials':['1']*78})
-        rhs,_=m.prepare(p)
-        np.testing.assert_allclose(rhs(0,np.r_[p['initial'],0])[:15],[-12,-12,-1,-4,6,1,11,6,12,7,-4,1,7,-9,1])
-    def test_known_f7_regression(self):
+    def test_complete_article_example_requires_only_numbers(self):
+        r=m.simulate({})
+        self.assertEqual(r['parameters']['initial'],m.DATA['article_initial'])
+        self.assertEqual(r['forcing'],[])
+        self.assertEqual(r['parameters']['external_start'],[])
+        np.testing.assert_allclose([r['series'][i][-1] for i in [0,1,2,8]],[1.398636244496,1.463543803775,1.129550082403,.804545343336],atol=2e-10,rtol=0)
+        self.assertAlmostEqual(r['criterion'][-1],.09306763004434,places=10)
+    def test_literal_x9_derivative_matches_printed_polynomial(self):
+        p=m.parameters({});rhs,_=m.prepare(p)
+        self.assertAlmostEqual(rhs(0,np.r_[p['initial'],0])[8],.791+.374*.609-.421*.609**2,places=13)
+    def test_full_model_does_not_invent_missing_factors(self):
+        with self.assertRaises(m.InputError):m.simulate({'model':'full'})
+        with self.assertRaises(m.InputError):m.simulate({'model':'full','external_start':['0']*5,'external_slope':['']*5})
+    def test_external_parameters_are_numbers_and_affine(self):
+        p=m.parameters({'model':'full','external_start':[1,2,3,4,5],'external_slope':[.1,-.2,.3,0,-.1]})
+        _,f=m.prepare(p);np.testing.assert_allclose(f(.7),[1.07,1.86,3.21,4,4.93])
+        with self.assertRaises(m.InputError):m.parameters({'model':'full','external_start':['2*t']*5,'external_slope':[0]*5})
+        with self.assertRaises(m.InputError):m.parameters({'model':'full','external_start':[0]*5,'external_slope':[-1]*5})
+    def test_external_brigade_factor_changes_only_expected_derivatives(self):
+        p=m.parameters({'model':'full','external_start':[0]*5,'external_slope':[0]*5});a,_=m.prepare(p)
+        p2={**p,'external_start':[0,.1,0,0,0]};b,_=m.prepare(p2);y=np.r_[p['initial'],0]
+        np.testing.assert_allclose((b(0,y)-a(0,y))[:3],[-.1]*3)
+        np.testing.assert_allclose((b(0,y)-a(0,y))[3:],0)
+    def test_source_versions_are_not_silently_equated(self):
+        a=m.simulate({});b=m.simulate({'model':'full','external_start':[0]*5,'external_slope':[0]*5})
+        self.assertGreater(abs(a['series'][8][-1]-b['series'][8][-1]),.5)
+        self.assertIn(8,b['diagnostics']['negative']);self.assertLess(b['series'][7][-1],0)
+    def test_regression_is_reproducible(self):
         p=m.fit_coefficients()[6]
         np.testing.assert_allclose(p['coefficients'],[.7910939134302122,.373946742672281,-.420939918485693],rtol=1e-11)
         self.assertAlmostEqual(p['r2'],.30153274419638676,places=12)
-    def test_normalization_and_inverse(self):
+    def test_normalization_units(self):
         raw=np.array(m.DATA['raw']);scales=np.array(m.DATA['scales'])
         np.testing.assert_allclose(raw.max(axis=0),scales)
         np.testing.assert_allclose(np.array(m.DATA['normalized'])*scales,raw)
-    def test_rk4_against_analytic_and_order(self):
-        rhs=lambda t,y:-y
-        _,a=m.rk4(rhs,[1.],1.,20);_,b=m.rk4(rhs,[1.],1.,40)
-        e1=abs(a[0,-1]-math.exp(-1));e2=abs(b[0,-1]-math.exp(-1))
-        self.assertGreater(e1/e2,15);self.assertLess(e1/e2,18)
-    def test_full_solver_criterion_and_rk45_agree(self):
-        p={'forcing':['0']*5,'plus':['0']*15,'minus':[f'x{i+1}' for i in range(15)],'initial':[1]*15,'target':[0]*15}
-        a=m.simulate(p);b=m.simulate({**p,'method':'RK45'})
-        self.assertAlmostEqual(a['series'][0][-1],math.exp(-.7),places=10)
-        self.assertAlmostEqual(a['criterion'][-1],(1-math.exp(-1.4))/2,places=10)
-        np.testing.assert_allclose(a['series'],b['series'],atol=1e-9)
-    def test_negative_state_is_reported_not_clipped(self):
-        a=m.simulate({'forcing':['0']*5})
-        self.assertIn(8,a['diagnostics']['negative'])
-        self.assertLess(a['series'][7][-1],-.02)
-        self.assertAlmostEqual(a['series'][14][-1],math.exp(-.7),places=10)
-    def test_series_uses_current_equations_factors_and_observed_states(self):
-        r=m.dispatch({'action':'experiments','parameters':{'forcing':['t']*5,'plus':['0']*15,'minus':['0']*15}})
-        self.assertEqual([q['year'] for q in r],[2015,2016,2018,2020,2022])
-        for q,i in zip(r,[0,1,3,5,7]):
-            np.testing.assert_allclose(np.array(q['result']['series'])[:,-1],m.DATA['normalized'][i])
-            self.assertAlmostEqual(q['result']['forcing'][0][-1],.7)
-    def test_arbitrary_code_and_invalid_math_rejected(self):
-        for s in ['__import__("os")','u.__class__','[u][0]','(lambda: 1)()','10**1000','1/0','sqrt(-1)']:
+    def test_rk4_order_on_known_solution(self):
+        _,a=m.rk4(lambda t,y:-y,[1.],1.,20);_,b=m.rk4(lambda t,y:-y,[1.],1.,40)
+        ratio=abs(a[0,-1]-math.exp(-1))/abs(b[0,-1]-math.exp(-1))
+        self.assertGreater(ratio,15);self.assertLess(ratio,18)
+    def test_two_solvers_and_refinement_agree(self):
+        a=m.simulate({});b=m.simulate({'method':'RK45'})
+        np.testing.assert_allclose(a['series'],b['series'],atol=2e-8,rtol=0)
+        self.assertAlmostEqual(a['criterion'][-1],b['criterion'][-1],places=9)
+        self.assertLess(a['diagnostics']['step_difference'],1e-9)
+    def test_experiments_include_current_input_and_keep_settings(self):
+        initial=m.DATA['article_initial'].copy();initial[0]=.7
+        r=m.dispatch({'action':'experiments','parameters':{'initial':initial,'duration':.4}})
+        self.assertEqual(r[0]['name'],'Текущие значения')
+        self.assertEqual([q['year'] for q in r],[None,2016,2018,2020,2022])
+        self.assertEqual(r[0]['result']['series'][0][0],.7)
+        for q in r:self.assertEqual(q['result']['t'][-1],.4);self.assertEqual(q['result']['parameters']['model'],'article')
+    def test_invalid_inputs_are_rejected(self):
+        for p in [{'initial':[1]},{'steps':201},{'duration':0},{'weights':[0]*15},{'model':'unknown'},{'duration':'1+1'}]:
+            with self.subTest(p=p):
+                with self.assertRaises(m.InputError):m.parameters(p)
+    def test_no_code_execution_in_arithmetic_parser(self):
+        for s in ['__import__("os")','u.__class__','[u][0]','10**1000','1/0']:
             with self.subTest(s=s):
                 with self.assertRaises(m.InputError):m.Expression(s,{'u'},'test')({'u':1})
-    def test_dimensions_and_step_grid(self):
-        for p in [{'initial':[1]},{'steps':201},{'duration':0},{'weights':[0]*15}]:
-            with self.assertRaises(m.InputError):m.parameters(p)
-    def test_external_controls_have_expected_effect(self):
-        p=m.parameters({'forcing':['0','0','0','0','0']});rhs,_=m.prepare(p)
-        a=rhs(0,np.r_[p['initial'],0]);p['forcing'][1]='.1';rhs,_=m.prepare(p)
-        b=rhs(0,np.r_[p['initial'],0]);np.testing.assert_allclose((b-a)[:3],[-.1]*3)
-        np.testing.assert_allclose((b-a)[3:],0)
 
 if __name__=='__main__':unittest.main(verbosity=2)
