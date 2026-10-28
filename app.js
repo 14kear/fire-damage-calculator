@@ -10,7 +10,7 @@ function route(){let id=location.hash.slice(1)||'calculation';if(!['calculation'
 addEventListener('hashchange',route);
 function table(headers,rows){return '<table><thead><tr>'+headers.map(x=>`<th>${x}</th>`).join('')+'</tr></thead><tbody>'+rows.map(r=>'<tr>'+r.map(x=>`<td>${x}</td>`).join('')+'</tr>').join('')+'</tbody></table>';}
 function chart(target,t,lines,ylabel){
- const w=1000,h=320,l=132,r=22,b=44,top=20;let values=lines.flatMap(x=>x.y);let lo=Math.min(0,...values),hi=Math.max(...values);if(hi-lo<1e-12){hi=lo+1;}let pad=(hi-lo)*.06;lo-=pad;hi+=pad;
+ const w=1000,h=320,l=132,r=22,b=44,top=20;let values=lines.flatMap(x=>x.y);let lo=Math.min(0,...values),hi=Math.max(...values);if(hi-lo<1e-12){hi=lo+1;}let pad=(hi-lo)*.06;if(lo<0)lo-=pad;hi+=pad;
  const xx=v=>l+(v-t[0])/(t.at(-1)-t[0]||1)*(w-l-r), yy=v=>h-b-(v-lo)/(hi-lo)*(h-top-b);
  let s=`<svg class="chart" viewBox="0 0 ${w} ${h}" role="img" aria-label="${esc(ylabel)}"><title>${esc(ylabel)}</title>`;
  for(let k=0;k<=4;k++){let y=lo+k*(hi-lo)/4,py=yy(y),x=t[0]+k*(t.at(-1)-t[0])/4;s+=`<line x1="${l}" y1="${py}" x2="${w-r}" y2="${py}" stroke="#ddd"/><text x="${l-10}" y="${py+5}" text-anchor="end" font-size="13" fill="#444">${fmt(y,Math.abs(y)>=1000?0:3)}</text><text x="${xx(x)}" y="${h-18}" text-anchor="middle" font-size="13">${fmt(x,3)}</text>`;}
