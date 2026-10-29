@@ -20,8 +20,8 @@ class ModelTests(unittest.TestCase):
         with self.assertRaises(m.InputError):m.simulate({'model':'full'})
         with self.assertRaises(m.InputError):m.simulate({'model':'full','external_start':['0']*5,'external_slope':['']*5})
     def test_external_parameters_are_numbers_and_affine(self):
-        p=m.parameters({'model':'full','external_start':[1,2,3,4,5],'external_slope':[.1,-.2,.3,0,-.1]})
-        _,f=m.prepare(p);np.testing.assert_allclose(f(.7),[1.07,1.86,3.21,4,4.93])
+        p=m.parameters({'model':'full','external_start':[.1,.2,.3,.4,.5],'external_slope':[.1,-.2,.3,0,-.1]})
+        _,f=m.prepare(p);np.testing.assert_allclose(f(.7),[.17,.06,.51,.4,.43])
         with self.assertRaises(m.InputError):m.parameters({'model':'full','external_start':['2*t']*5,'external_slope':[0]*5})
         with self.assertRaises(m.InputError):m.parameters({'model':'full','external_start':[0]*5,'external_slope':[-1]*5})
     def test_external_brigade_factor_changes_only_expected_derivatives(self):
@@ -65,5 +65,35 @@ class ModelTests(unittest.TestCase):
         for s in ['__import__("os")','u.__class__','[u][0]','10**1000','1/0']:
             with self.subTest(s=s):
                 with self.assertRaises(m.InputError):m.Expression(s,{'u'},'test')({'u':1})
+
+class EditorTests(unittest.TestCase):
+    def test_all_article_functions_preserve_source_rhs(self):
+        for values in [[.1]*15,[.5]*15,[1]*15,np.linspace(.1,.9,15).tolist(),m.DATA['article_initial']]:
+            p=m.parameters({'initial':values});rhs,_=m.prepare(p)
+            expected=[m.Expression(s,{f'x{i}' for i in range(1,16)},'source')({f'x{i}':values[i-1] for i in range(1,16)}) for s in m.ARTICLE]
+            np.testing.assert_allclose(rhs(0,np.r_[p['initial'],0])[:15],expected,atol=1e-12,rtol=1e-10)
+    def test_edit_affects_only_its_equation_derivative(self):
+        p=m.parameters({});a,_=m.prepare(p);b,_=m.prepare(m.parameters({'functions':{'1':{'kind':'constant','a':0}}}))
+        y=np.r_[p['initial'],0];self.assertEqual(b(0,y)[0],0);np.testing.assert_allclose(a(0,y)[1:],b(0,y)[1:])
+    def test_preview_and_calculation_use_same_custom_function(self):
+        spec={'kind':'custom','expression':'0.5 + sin(u)'}
+        r=m.preview({'function_id':'1','function':spec})
+        self.assertAlmostEqual(r['values'][-1],.5+math.sin(1))
+        p=m.parameters({'functions':{'1':spec}});rhs,_=m.prepare(p);self.assertTrue(np.isfinite(rhs(0,np.r_[p['initial'],0])).all())
+    def test_edits_survive_experiment_series(self):
+        spec={'1':{'kind':'constant','a':0}}
+        r=m.dispatch({'action':'experiments','parameters':{'functions':spec}})
+        for q in r:self.assertAlmostEqual(q['result']['series'][0][0],q['result']['series'][0][-1])
+    def test_normalized_inputs_and_targets_reject_outside_range(self):
+        for key in ['initial','target','weights']:
+            with self.assertRaises(m.InputError):m.parameters({key:[1.01]*15})
+    def test_custom_expression_rejects_unsafe_or_undefined(self):
+        for source in ['__import__("os")','u.__class__','1/(u-0.5)','log(u)']:
+            with self.assertRaises(m.InputError):m.preview({'function':{'kind':'custom','expression':source}})
+    def test_function_forms(self):
+        for kind,answer in [('quadratic',6),('linear',3),('constant',1),('exponential',math.exp(2)+3)]:
+            r=m.preview({'function':{'kind':kind,'a':1,'b':2,'c':3}});self.assertAlmostEqual(r['values'][-1],answer)
+    def test_normalized_external_endpoints(self):
+        with self.assertRaises(m.InputError):m.parameters({'model':'full','external_start':[1]*5,'external_slope':[.1]*5})
 
 if __name__=='__main__':unittest.main(verbosity=2)

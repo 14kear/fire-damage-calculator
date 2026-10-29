@@ -1,4 +1,4 @@
-"""Two explicitly separate source systems. Public inputs are numeric only.
+"""Two separate source systems with normalized inputs and editable functions.
 The article numerical example is complete; system (3) requires measured/scenario E coefficients.
 No inferred E, no clipped negative states.
 """
@@ -97,8 +97,66 @@ def fit_coefficients():
 DATA['polynomials'] = fit_coefficients()
 PLUS, MINUS = default_parts()
 ARTICLE = [re.sub(r'x\[(\d+)\]', lambda m: 'x'+str(int(m[1])+1), s) for s in DATA['literal_rhs']]
+def article_catalog():
+    catalog={};expressions=[]
+    mapping={(q['target'],q['input']):q['id'] for q in DATA['polynomials']}
+    def factors(node):
+        return factors(node.left)+factors(node.right) if isinstance(node,ast.BinOp) and isinstance(node.op,ast.Mult) else [node]
+    for i,source in enumerate(ARTICLE):
+        calls=[]
+        for node in factors(ast.parse(source,mode='eval').body):
+            names={n.id for n in ast.walk(node) if isinstance(n,ast.Name)}
+            if len(names)!=1:raise ValueError('Ambiguous source polynomial')
+            name=names.pop();j=int(name[1:]);fid=mapping[i+1,j]
+            text=ast.unparse(node).replace(name,'u')
+            # Read coefficients directly; evaluating at ±1 loses tiny printed terms.
+            def coefficients(n):
+                if isinstance(n,ast.Constant):return [float(n.value)]
+                if isinstance(n,ast.Name):return [0.,1.]
+                if isinstance(n,ast.UnaryOp):return [(-v if isinstance(n.op,ast.USub) else v) for v in coefficients(n.operand)]
+                left=coefficients(n.left)
+                if isinstance(n.op,ast.Pow):
+                    if not isinstance(n.right,ast.Constant) or n.right.value!=2:raise ValueError('Expected quadratic source')
+                    return np.convolve(left,left).tolist()
+                right=coefficients(n.right)
+                if isinstance(n.op,ast.Mult):return np.convolve(left,right).tolist()
+                size=max(len(left),len(right));left+= [0.]*(size-len(left));right+= [0.]*(size-len(right))
+                return [a-b if isinstance(n.op,ast.Sub) else a+b for a,b in zip(left,right)]
+            abc=coefficients(node)
+            if len(abc)>3:raise ValueError('Expected degree <= 2')
+            abc += [0.]*(3-len(abc))
+            catalog[str(fid)]=dict(id=fid,input=j,target=i+1,kind='quadratic',a=abc[0],b=abc[1],c=abc[2],expression=text)
+            calls.append(f'f{fid}(x{j})')
+        expressions.append('*'.join(calls))
+    return catalog,expressions
+ARTICLE_CATALOG,ARTICLE_CALLS=article_catalog()
+FULL_CATALOG={str(q['id']):dict(id=q['id'],input=q['input'],target=q['target'],kind='quadratic',a=q['coefficients'][0],b=q['coefficients'][1],c=q['coefficients'][2]) for q in DATA['polynomials']}
+
+def function_source(spec):
+    kind=spec.get('kind','quadratic')
+    if kind=='custom':
+        source=spec.get('expression','')
+        Expression(source,{'u'},'Функция f')
+        return source
+    a=number(spec.get('a',0),'Коэффициент a',-1e6,1e6);b=number(spec.get('b',0),'Коэффициент b',-1e6,1e6);c=number(spec.get('c',0),'Коэффициент c',-1e6,1e6)
+    if kind=='quadratic':return f'({a})+({b})*u+({c})*u**2'
+    if kind=='linear':return f'({a})+({b})*u'
+    if kind=='constant':return str(a)
+    if kind=='exponential':return f'({a})*exp(({b})*u)+({c})'
+    raise InputError('Неизвестный вид функции.')
+
+def catalog(mode):return ARTICLE_CATALOG if mode=='article' else FULL_CATALOG
+
+def preview(request):
+    mode=request.get('model','article');fid=str(request.get('function_id','1'))
+    if mode not in ['article','full'] or fid not in catalog(mode):raise InputError('Выберите функцию из списка.')
+    spec=request.get('function',catalog(mode)[fid]);fn=Expression(function_source(spec),{'u'},'Функция f')
+    original=Expression(function_source(catalog(mode)[fid]),{'u'},'Исходная функция')
+    u=np.linspace(0,1,101)
+    return dict(u=u.tolist(),values=[fn({'u':float(x)}) for x in u],original=[original({'u':float(x)}) for x in u],expression=function_source(spec))
+
 DEFAULT = dict(model='article',duration=.7,steps=200,method='RK4',initial=DATA['article_initial'],
-    external_start=[None]*5,external_slope=[None]*5,target=DATA['limits'][2],weights=[1/15]*15)
+    external_start=[None]*5,external_slope=[None]*5,target=DATA['limits'][2],weights=[1/15]*15,functions={})
 
 def parameters(raw):
     if not isinstance(raw,dict): raise InputError('Требуется набор числовых параметров.')
@@ -111,7 +169,12 @@ def parameters(raw):
     if p['method'] not in ['RK4','RK45']: raise InputError('Выберите RK4 или RK45.')
     for key in ['initial','target','weights']:
         if not isinstance(p[key],list) or len(p[key])!=15: raise InputError(f'{key}: требуется 15 чисел.')
-        p[key]=[number(v,f'{dict(initial="Начальное значение",target="Цель",weights="Вес")[key]}, X{i+1}',0,1e6) for i,v in enumerate(p[key])]
+        p[key]=[number(v,f'{dict(initial="Начальное значение",target="Цель",weights="Вес")[key]}, X{i+1}',0,1) for i,v in enumerate(p[key])]
+    if not isinstance(p['functions'],dict) or len(p['functions'])>78:raise InputError('Некорректный набор функций.')
+    for fid,spec in p['functions'].items():
+        if fid not in catalog(p['model']):raise InputError('Неизвестная функция '+str(fid))
+        if not isinstance(spec,dict):raise InputError('Некорректная функция '+str(fid))
+        Expression(function_source(spec),{'u'},'f'+str(fid))
     if not any(p['weights']): raise InputError('Хотя бы один вес должен быть больше нуля.')
     if p['model']=='full':
         for key in ['external_start','external_slope']:
@@ -119,7 +182,7 @@ def parameters(raw):
             label='начальное значение b' if key=='external_start' else 'изменение k'
             p[key]=[number(v,f'E{i+1}, {label}',-1e6,1e6) for i,v in enumerate(p[key])]
         for i,(b,k) in enumerate(zip(p['external_start'],p['external_slope'])):
-            if min(b,b+k*p['duration']) < 0: raise InputError(f'E{i+1}: воздействие должно быть неотрицательным на выбранном интервале.')
+            if min(b,b+k*p['duration']) < 0 or max(b,b+k*p['duration'])>1: raise InputError(f'E{i+1}: нормированное воздействие должно оставаться в диапазоне 0–1 на выбранном интервале.')
     else:
         # This published numerical block has no E. Missing factors are NOT silently set to zero.
         p['external_start']=[];p['external_slope']=[]
@@ -127,11 +190,12 @@ def parameters(raw):
 
 def prepare(p):
     names={'t'}|{f'x{i}' for i in range(1,16)}|{f'e{i}' for i in range(1,6)}
-    functions={f'f{i+1}':(lambda u,c=q['coefficients']:float(c[0]+c[1]*u+c[2]*u*u)) for i,q in enumerate(DATA['polynomials'])}
-    if p['model']=='article':
-        terms=[Expression(s,names,f'X{i+1}') for i,s in enumerate(ARTICLE)]
-    else:
-        terms=[Expression('('+a+')-('+b+')',names,f'X{i+1}',functions) for i,(a,b) in enumerate(zip(PLUS,MINUS))]
+    functions={}
+    for fid,base in catalog(p['model']).items():
+        expr=Expression(function_source(p['functions'].get(fid,base)),{'u'},'f'+fid)
+        functions['f'+fid]=lambda u,expr=expr:expr({'u':u})
+    expressions=ARTICLE_CALLS if p['model']=='article' else ['('+a+')-('+b+')' for a,b in zip(PLUS,MINUS)]
+    terms=[Expression(s,names,f'X{i+1}',functions) for i,s in enumerate(expressions)]
     target=np.array(p['target']);weights=np.array(p['weights']);calls=0
     def factors(t):return [b+k*t for b,k in zip(p['external_start'],p['external_slope'])]
     def rhs(t,y):
@@ -188,6 +252,7 @@ def simulate(raw, verify=True):
 
 def dispatch(request):
     mode=request.get('action')
+    if mode=='preview':return preview(request)
     if mode=='defaults':return DEFAULT
     if mode=='simulate':return simulate(request.get('parameters',{}))
     if mode=='experiments':
