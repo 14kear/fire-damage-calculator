@@ -1,1 +1,243 @@
-<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Методика расчёта</title><link rel="stylesheet" href="style.css?v=editor-20261029"><style>.method{max-width:1000px}.method pre{white-space:pre-wrap;overflow-wrap:anywhere;font:16px/1.6 Georgia,serif;padding:12px;border:1px solid #ddd}.method p{line-height:1.6}</style></head><body><main class="method"><a href="index.html">К калькулятору</a><h1>Методика расчёта</h1><h2>Две записи исходной модели</h2><p>Основной режим воспроизводит полностью записанный численный пример из предоставленной статьи: 15 дифференциальных уравнений, их коэффициенты и начальные значения. Начальные показатели вводятся в диапазоне 0–1. Конструктор позволяет изменять функции f и их коэффициенты. Отдельный режим реализует символическую систему (3) с внешними факторами. Это разные записи исходника, а не две формы одной и той же системы.</p><p>Статистика Путилов.xlsx: восемь наблюдений 2015–2022. Матрица с возмущениями.xlsx: 15 показателей и 5 внешних факторов. Текущая статья: система (3) и последующий численный блок.</p><h2>Нормировка и единицы</h2><p>Xᵢ = Yᵢ / Mᵢ; Mᵢ = max(Yᵢ за 2015–2022); Yᵢ = MᵢXᵢ.</p><p>Сохраняется нормировка статьи по максимуму с естественным нулём. Для суммы R в рублях X=R/(1000·M), поскольку Excel хранит тысячи рублей; обратный перевод R=1000·M·X. Например, 11 230 923 500 ₽ / 22 461 847 000 ₽ = 0,5 для X₃. Все 15 начальных X и цели вводятся от 0 до 1. Графики показывают эти же безразмерные X. Если решение выходит выше 1, шкала расширяется: превышение исторического максимума не обрезается и не перенормируется отдельно для каждого эксперимента. Логарифмирование или замена максимума потребовали бы пересчёта коэффициентов модели.</p><p>Y₁, Y₂ — люди; Y₃…Y₁₅ — тысячи рублей. Для перевода денежных значений в рубли требуется умножение на 1000. X₃ не складывается с потерями по причинам X₄…X₁₅. t — шкала статьи: 0; 0,1; …; 0,7 сопоставлены 2015–2022 годам, не минутам развития пожара.</p><h2>Конструктор функций</h2><p>В разделе «Конструктор функций» выбирают уравнение и нажимают на f в его записи. Доступны все 78 зависимостей. Можно изменить коэффициенты a, b, c, выбрать квадратичную, линейную, постоянную, экспоненциальную функцию либо ввести выражение от u. График сравнивает исходную и изменённую функции на u от 0 до 1. Кнопка «Применить к модели» подключает изменение к расчёту и всей серии; затем требуется пересчитать результат. Возврат к исходной функции предусмотрен отдельно. Пользовательские функции являются изменениями модели, а не коэффициентами из источника. Операции между функциями в системе сохраняются. Значения f и коэффициенты не ограничиваются диапазоном 0–1.</p><h2>Полный численный пример из статьи</h2><p>Коэффициенты сохранены с точностью исходной записи. X(0) = 1.0, 1.0, 1.0, 1.0, 0.609, 0.854, 1.0, 0.055, 0.204, 0.823, 0.172, 0.046, 0.598, 0.097, 1.0; T = 0,7. X₁₀(0) = 0,823 взято буквально из статьи, а не из нормировки строки Excel.</p><pre>dX₁/dt = (0.66 + 0.759·X₅ − 0.566·X₅²)·(0.886 − 0.155·X₆ + 0.218·X₆²)·(0.928 − 0.0928·X₉ − 0.00627·X₉²)·( − 1.75 + 6.01·X₁₀ − 3.4·X₁₀²)·(0.83 + 0.206·X₁₃ − 0.154·X₁₃²)·(1.07 − 0.73·X₁₅ + 0.643·X₁₅²)</pre><pre>dX₂/dt = (0.791 + 0.374·X₅ − 0.421·X₅²)·(0.508 + 0.865·X₁₀ − 0.538·X₁₀²)·(0.632 + 0.894·X₁₃ − 0.785·X₁₃²)·(0.731 − 0.0611·X₁₅ + 0.313·X₁₅²)</pre><pre>dX₃/dt = (0.694 + 0.0898·X₄ + 0.186·X₄²)·( − 0.409 + 3.31·X₅ − 2.02·X₅²)·(0.714 + 0.79·X₆ − 0.855·X₆²)·(0.729 + 0.0282·X₇ + 0.239·X₇²)·(0.797 − 0.18·X₈ + 0.106·X₈²)·(0.752 + 0.0439·X₉ + 0.0213·X₉²)·(0.851 − 0.164·X₁₁ − 0.0481·X₁₁²)·(0.775 + 0.214·X₁₂ − 0.311·X₁₂²)·(0.827 − 0.119·X₁₃ + 0.0415·X₁₃²)·(0.977 − 1.36·X₁₄ + 1.1·X₁₄²)·(1.55 − 2.46·X₁₅ + 1.82·X₁₅²)</pre><pre>dX₄/dt = ( − 2.23 + 8.3·X₅ − 5.92·X₅²)·(0.39 − 0.871·X₇ + 1.48·X₇²)·(0.254 + 1.03·X₉ − 1.14·X₉²)·(0.602 − 0.787·X₁₁ + 0.351·X₁₁²)·(0.462 − 0.202·X₁₂ − 0.0408·X₁₂²)·(0.558 − 1.21·X₁₄ + 1.04·X₁₄²)</pre><pre>dX₅/dt = (0.517 + 0.522·X₄ − 0.473·X₄²)·(0.466 + 1.03·X₇ − 0.895·X₇²)·(0.497 + 1.49·X₈ − 1.45·X₈²)·(0.633 + 0.206·X₁₁ − 0.419·X₁₁²)·(0.817 − 1.41·X₁₄ + 1.11·X₁₄²)</pre><pre>dX₆/dt = (0.749 − 2.41·X₄ + 2.41·X₄²)·( − 0.04 + 2.73·X₇ − 1.83·X₇²)·(0.701 − 3.2·X₈ + 2.63·X₈²)·(0.393 − 0.0128·X₁₁ + 0.0645·X₁₁²)·(0.0571 + 1.87·X₁₃ − 1.9·X₁₃²)</pre><pre>dX₇/dt = ( − 0.0369 + 1.56·X₆ − 1.07·X₆²)·(0.365 − 0.308·X₁₁ + 0.0856·X₁₁²)·(0.393 − 0.575·X₁₄ + 0.222·X₁₄²)·(1.65 − 5.48·X₁₅ + 4.75·X₁₅²)</pre><pre>dX₈/dt = (0.576 − 2.64·X₇ + 2.13·X₇²)·(0.0691 + 0.84·X₉ − 0.825·X₉²)·( − 0.224 + 2.86·X₁₁ − 2.61·X₁₁²)·(0.185 − 0.964·X₁₄ + 1.78·X₁₄²)·(3.21 − 7.87·X₁₅ + 4.79·X₁₅²)</pre><pre>dX₉/dt = (0.791 + 0.374·X₅ − 0.421·X₅²)</pre><pre>dX₁₀/dt = (0.846 + 0.327·X₄ − 0.305·X₄²)·(0.925 − 0.112·X₇ + 0.0196·X₇²)·(0.819 + X₈ − 0.924·X₈²)·(0.837 + 0.481·X₁₂ − 0.419·X₁₂²)</pre><pre>dX₁₁/dt = (0.626 − 0.8·X₄ + 0.297·X₄²)·(1.58 − 3.14·X₅ + 1.75·X₅²)·(0.483 − 0.437·X₇ + 0.142·X₇²)·(0.47 − 0.541·X₁₄ + 0.431·X₁₄²)·( − 0.178 + 2.14·X₁₅ − 1.8·X₁₅²)</pre><pre>dX₁₂/dt = (0.27 + 0.761·X₄ − 0.996·X₄²)·(0.658 − 3.06·X₁₄ + 3.22·X₁₄²)·(1.93 − 3.45·X₁₅ + 1.52·X₁₅²)</pre><pre>dX₁₃/dt = (0.483 + 0.523·X₄ − 0.44·X₄²)·(0.347 + 2.08·X₈ − 1.42·X₈²)·(0.321 + 1.62·X₁₂ − 1.18·X₁₂²)</pre><pre>dX₁₄/dt = ( − 0.0768 + 2.35·X₄ − 2.26·X₄²)·(0.388 + 0.0462·X₅ − 0.339·X₅²)·(0.262 + 0.273·X₆ − 0.306·X₆²)·(0.531 − 1.66·X₇ + 1.24·X₇²)·(0.268 − 1.26·X₈ + 1.99·X₈²)·(0.28 + 0.357·X₉ − 0.596·X₉²)·( − 0.0217 + 2.18·X₁₁ − 2.08·X₁₁²)·(1.37×10⁻⁵ + 2.08·X₁₂ − 1.74·X₁₂²)·(0.804 − 2.95·X₁₃ + 3.07·X₁₃²)·(7.85×10⁻¹⁷ + X₁₄ + 9.5×10⁻¹⁷·X₁₄²)</pre><pre>dX₁₅/dt = (0.473 + 0.949·X₆ − 0.558·X₆²)·(0.496 + 1.02·X₇ − 0.519·X₇²)·(0.924 − 2.51·X₈ + 2.04·X₈²)·(0.873 − 0.619·X₉ + 0.241·X₉²)·(0.909 − 1.33·X₁₁ + 1.13·X₁₁²)·(1.57×10⁻¹⁶ + X₁₅ + 2.66×10⁻¹⁷·X₁₅²)</pre><h2>Отдельная система (3)</h2><p>Для системы (3) матрица задаёт Eⱼ(t) = bⱼ + kⱼt, но не содержит значений b, k, единиц и шкал факторов. В папке преподавателя оказались побайтно те же три файла. В проверенных открытых источниках недостающие значения не найдены. Они остаются отдельными числовыми параметрами пользователя. Основной численный пример не содержит E: его запуск не означает подстановку E = 0.</p><pre>dX₁/dt = f1(X₅)·f2(X₆)·f3(X₉)·f4(X₁₀)·f5(X₁₃)·f6(X₁₅)·(E₁) − (E₂ + E₅)</pre><pre>dX₂/dt = f7(X₅)·f8(X₁₀)·f9(X₁₃)·f10(X₁₅)·(E₁) − (E₂ + E₅)</pre><pre>dX₃/dt = f11(X₄)·f12(X₅)·f13(X₆)·f14(X₇)·f15(X₈)·f16(X₉)·f17(X₁₁)·f18(X₁₂)·f19(X₁₃)·f20(X₁₄)·f21(X₁₅)·(E₁) − (E₂)</pre><pre>dX₄/dt = f22(X₅)·f23(X₇)·f24(X₉)·f25(X₁₁)·f26(X₁₂)·f27(X₁₄)·(E₄) − (E₅)</pre><pre>dX₅/dt = f28(X₄)·f29(X₇)·f30(X₈)·f31(X₁₁)·(E₄) − f32(X₁₄)</pre><pre>dX₆/dt = f33(X₄)·f34(X₇)·f35(X₈)·f36(X₁₁)·f37(X₁₃)·(E₃ + E₄) − (E₅)</pre><pre>dX₇/dt = f38(X₆)·f39(X₁₁)·f40(X₁₅)·(E₃ + E₄) − f41(X₁₄)</pre><pre>dX₈/dt = f42(X₇)·f43(X₉)·f44(X₁₁)·f45(X₁₅)·(E₁ + E₃) − f46(X₁₄)</pre><pre>dX₉/dt = f47(X₅)·(E₃ + E₄) − 0</pre><pre>dX₁₀/dt = f48(X₄)·f49(X₇)·f50(X₈)·f51(X₁₂)·(E₄) − 0</pre><pre>dX₁₁/dt = f52(X₄)·f53(X₅)·f54(X₇)·f55(X₁₅)·(E₄) − f56(X₁₄)·(E₅)</pre><pre>dX₁₂/dt = f57(X₄)·f58(X₁₅)·(E₃ + E₄) − f59(X₁₄)·(E₅)</pre><pre>dX₁₃/dt = f60(X₄)·f61(X₈)·f62(X₁₂)·(E₁ + E₃) − 0</pre><pre>dX₁₄/dt = f63(X₈)·f64(X₉)·f65(X₁₃)·(E₁) − f66(X₄)·f67(X₅)·f68(X₆)·f69(X₇)·f70(X₁₁)·f71(X₁₂)·f72(X₁₄)·(E₅)</pre><pre>dX₁₅/dt = f73(X₆)·f74(X₇)·f75(X₈)·f76(X₉)·f77(X₁₁)·(E₁) − f78(X₁₅)</pre><p>f(u) = β₀ + β₁u + β₂u². Для каждой из 78 связей коэффициенты вычисляются numpy.linalg.lstsq по восьми нормированным наблюдениям. Полная таблица коэффициентов показана в разделе «Формулы и данные» при выборе системы (3). Полиномы этого режима не подменяют округлённые коэффициенты численного примера. Делитель из общей формулы (2) в систему (3) не добавляется.</p><h2>Численное решение и критерий</h2><p>RK4: h=T/n; k₁=F(t,X); k₂=F(t+h/2,X+hk₁/2); k₃=F(t+h/2,X+hk₂/2); k₄=F(t+h,X+hk₃); Xслед=X+h(k₁+2k₂+2k₃+k₄)/6. RK4 повторяется при 2n шагах для проверки сходимости. Альтернатива — RK45 SciPy с rtol=10⁻⁹, atol=10⁻¹¹.</p><p>J(T) = ∫₀ᵀ Σᵢ₌₁¹⁵ γᵢ[Xᵢ(t) − Xᵢ*]²dt.</p><p>Равные веса γᵢ=1/15 указаны в примечании к статье. Цель Xᵢ* по умолчанию — среднее нормированное значение Excel; этот статистический ориентир выбран в калькуляторе и не является нормативом безопасности. J вычисляется как дополнительная переменная с J(0)=0; не измеряется в рублях. Чем он меньше при одинаковых целях и весах, тем ближе траектория к цели.</p><h2>Серия расчётов</h2><p>Первый расчёт использует текущие введённые значения, остальные — начальные состояния из строк 2016, 2018, 2020, 2022. Модель, применённые изменения функций, интервал, внешние параметры, цели и веса одинаковы. Это вычислительное сравнение условий, не реальные испытания. Снимки: τ=t/T=0; 0,25; 0,5; 0,75; 1. Лепестковые диаграммы имеют общий масштаб; отрицательные состояния не обрезаются, выводятся в таблице.</p><h2>Проверка и границы применения</h2><p>Матрица, символическая система (3), численный блок и таблица результатов статьи содержат несовпадения. Они не объединяются автоматически. Например, численный блок задаёт X₉′(0) = 0,791 + 0,374·0,609 − 0,421·0,609² = 0,862625099, тогда как таблица статьи сохраняет X₉ = 0,204. Поэтому результаты пересчитаны по напечатанным уравнениям, а не скопированы из таблицы.</p><p>В основном примере X₁(0,7)=1,398636244496; X₂=1,463543803775; X₃=1,129550082403; X₉=0,804545343336; J=0,093067630044. 21 автоматическая проверка охватывает исходные функции, единицы, оба режима, численный метод, конструктор, серию и валидацию ввода.</p><p>Нормированные значения могут превышать 1: это выход за максимум исходной статистики. Отрицательные решения показываются как физически недопустимые. Проверка вычислений не доказывает точность прогноза для предприятия. Цены, шкалы E и управляемые действия для оптимизации реального плана в комплекте не определены. Публикация MLSD2024 описывает девять переменных и не является источником недостающих коэффициентов этой 15-мерной версии.</p><h2>Источники</h2><ul><li><a href="https://drive.google.com/drive/folders/16E50sw2qktwoKidohqLSN_WRUQ8epj_Q">Материалы преподавателя: статистика, матрица, текст статьи</a></li><li><a href="https://mlsd2024.ipu.ru/proceedings/0408.pdf">Публикация MLSD2024, с. 408–412 (девять переменных)</a></li><li><a href="https://docs.scipy.org/doc/scipy/reference/generated/scipy.integrate.solve_ivp.html">SciPy: solve_ivp / RK45</a></li><li><a href="https://numpy.org/doc/stable/reference/generated/numpy.linalg.lstsq.html">NumPy: метод наименьших квадратов</a></li><li><a href="https://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.MaxAbsScaler.html">scikit-learn: масштабирование по модулю максимума</a></li></ul></main></body></html>
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Описание математической модели — Модели и алгоритмы ликвидации последствий пожара</title>
+  <link rel="stylesheet" href="style.css?v=20261112-final">
+  <style>
+    .method-page { max-width: 1140px; margin: 0 auto; padding: 20px 22px 48px; }
+    .method-card { background: #fff; border: 1px solid var(--line); border-radius: 8px; padding: 20px 24px; margin-bottom: 16px; box-shadow: var(--shadow); }
+    .method-card h2 { margin-bottom: 10px; padding-bottom: 6px; border-bottom: 1px solid var(--line); }
+    .method-card p { margin: 8px 0; line-height: 1.55; }
+    .formula-box { background: #f8fafc; border-left: 4px solid var(--primary); padding: 10px 14px; margin: 10px 0; font: 16px/1.55 Georgia, "Times New Roman", serif; border-radius: 4px; }
+    .poly-cell { font-family: Georgia, "Times New Roman", serif; }
+    .lit-list { margin: 8px 0 0; padding-left: 22px; line-height: 1.55; font-size: 14.5px; }
+    .lit-list li { margin-bottom: 6px; }
+  </style>
+</head>
+<body>
+<main class="method-page">
+  <header class="top-header">
+    <div>
+      <h1>Модели и алгоритмы для ликвидации последствий пожара на промышленном предприятии</h1>
+      <p class="subtitle">Математическое описание модели системной динамики по критерию минимума ущерба</p>
+    </div>
+    <div class="header-links">
+      <a href="index.html?v=20261112-final" class="link-btn">← Вернуться к калькулятору</a>
+    </div>
+  </header>
+
+  <section class="method-card">
+    <h2>1. Постановка задачи и характеристики системы X<sub>1</sub>(t)–X<sub>15</sub>(t)</h2>
+    <p>Для оценки, прогнозирования и минимизации социально-экономических последствий пожаров на промышленном предприятии используется аппарат системной динамики. На временном интервале <em>t</em> ∈ [0; <em>T</em>] (<em>T</em> ≤ 1) состояние системы описывается пятнадцатью безразмерными нормированными характеристиками <strong>X<sub>1</sub>(t)…X<sub>15</sub>(t)</strong>, приведёнными к единой шкале <strong>[0; 1]</strong> по статистическим сборникам ФГБУ ВНИИПО МЧС России «Пожары и пожарная безопасность»:</p>
+    <div class="formula-box">
+      X<sub>i</sub>(t) = Y<sub>i</sub>(t) / X<sub>i</sub><sup>max</sup>, &nbsp;&nbsp; i = 1, …, 15, &nbsp;&nbsp; 0 ≤ X<sub>i</sub>(t) ≤ 1.
+    </div>
+    <p>Целевая функция управления состоит в минимизации отклонений актуальных характеристик <strong>X<sub>i</sub>(t)</strong> от допустимых (предельных) значений <strong>X<sub>i</sub><sup>*</sup></strong>, определяющих границу красной зоны на радиальных (лепестковых) диаграммах:</p>
+    <div class="formula-box">
+      J(T) = ∫<sub>0</sub><sup>T</sup> Σ<sub>i=1..15</sub> γ<sub>i</sub> · (X<sub>i</sub>(t) − X<sub>i</sub><sup>*</sup>)<sup>2</sup> dt → min, &nbsp;&nbsp; γ<sub>i</sub> = 1 / 15.
+    </div>
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Обозначение</th>
+            <th>Наименование характеристики последствий пожара</th>
+            <th class="num-col">Максимум X<sub>i</sub><sup>max</sup></th>
+            <th class="num-col">Нач. условие X<sub>i</sub>(0)</th>
+            <th class="num-col">Среднее допуст. X<sub>i</sub><sup>*</sup></th>
+          </tr>
+        </thead>
+        <tbody>
+<tr><td><strong>X<sub>1</sub>(t)</strong></td><td>Количество погибших людей</td><td class="num-col">9405 чел.</td><td class="num-col">1,000</td><td class="num-col">0,890</td></tr>
+<tr><td><strong>X<sub>2</sub>(t)</strong></td><td>Количество травмированных людей</td><td class="num-col">10962 чел.</td><td class="num-col">1,000</td><td class="num-col">0,847</td></tr>
+<tr><td><strong>X<sub>3</sub>(t)</strong></td><td>Прямой ущерб от пожаров</td><td class="num-col">22461847 тыс. руб.</td><td class="num-col">1,000</td><td class="num-col">0,774</td></tr>
+<tr><td><strong>X<sub>4</sub>(t)</strong></td><td>Неисправность производственного оборудования, нарушение техпроцесса производства</td><td class="num-col">1942729 тыс. руб.</td><td class="num-col">1,000</td><td class="num-col">0,388</td></tr>
+<tr><td><strong>X<sub>5</sub>(t)</strong></td><td>Нарушение правил устройства и эксплуатации электрооборудования</td><td class="num-col">13250190 тыс. руб.</td><td class="num-col">0,609</td><td class="num-col">0,603</td></tr>
+<tr><td><strong>X<sub>6</sub>(t)</strong></td><td>Нарушение правил устройства и эксплуатации газового оборудования</td><td class="num-col">864824 тыс. руб.</td><td class="num-col">0,854</td><td class="num-col">0,405</td></tr>
+<tr><td><strong>X<sub>7</sub>(t)</strong></td><td>Нарушение правил пожарной безопасности при проведении электрогазосварочных работ</td><td class="num-col">1914455 тыс. руб.</td><td class="num-col">1,000</td><td class="num-col">0,268</td></tr>
+<tr><td><strong>X<sub>8</sub>(t)</strong></td><td>Взрывы</td><td class="num-col">57751 тыс. руб.</td><td class="num-col">0,055</td><td class="num-col">0,203</td></tr>
+<tr><td><strong>X<sub>9</sub>(t)</strong></td><td>Самовозгорание веществ и материалов</td><td class="num-col">690213 тыс. руб.</td><td class="num-col">0,204</td><td class="num-col">0,390</td></tr>
+<tr><td><strong>X<sub>10</sub>(t)</strong></td><td>Нарушение правил устройства и эксплуатации печей</td><td class="num-col">887695 тыс. руб.</td><td class="num-col">0,823</td><td class="num-col">0,898</td></tr>
+<tr><td><strong>X<sub>11</sub>(t)</strong></td><td>Нарушение правил устройства и эксплуатации теплогенерирующих установок</td><td class="num-col">328566 тыс. руб.</td><td class="num-col">0,172</td><td class="num-col">0,389</td></tr>
+<tr><td><strong>X<sub>12</sub>(t)</strong></td><td>Нарушение правил пожарной безопасности при проведении огневых работ</td><td class="num-col">249142 тыс. руб.</td><td class="num-col">0,046</td><td class="num-col">0,321</td></tr>
+<tr><td><strong>X<sub>13</sub>(t)</strong></td><td>Грозовые разряды</td><td class="num-col">142093 тыс. руб.</td><td class="num-col">0,598</td><td class="num-col">0,578</td></tr>
+<tr><td><strong>X<sub>14</sub>(t)</strong></td><td>Неустановленные причины</td><td class="num-col">2369300 тыс. руб.</td><td class="num-col">0,097</td><td class="num-col">0,279</td></tr>
+<tr><td><strong>X<sub>15</sub>(t)</strong></td><td>Установленный поджог</td><td class="num-col">3510346 тыс. руб.</td><td class="num-col">1,000</td><td class="num-col">0,688</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="method-card">
+    <h2>2. Внешние возмущения E<sub>1</sub>(t)–E<sub>5</sub>(t)</h2>
+    <p>Внешние условия функционирования промышленного объекта и меры противопожарной профилактики задаются пятью функциями возмущений <strong>E<sub>1</sub>(t)…E<sub>5</sub>(t)</strong> со значениями на отрезке <strong>[0; 1]</strong>:</p>
+    <div class="formula-box">
+      E<sub>m</sub>(t) = c<sub>m</sub> + b<sub>m</sub>·t + a<sub>m</sub>·t<sup>2</sup>, &nbsp;&nbsp; m = 1, …, 5, &nbsp;&nbsp; 0 ≤ E<sub>m</sub>(t) ≤ 1.
+    </div>
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Обозначение</th>
+            <th>Наименование внешнего возмущения</th>
+            <th>Зависимость от времени t по умолчанию</th>
+          </tr>
+        </thead>
+        <tbody>
+<tr><td><strong>E<sub>1</sub>(t)</strong></td><td>Объём аварийно-химически опасных веществ на предприятии</td><td>E<sub>1</sub>(t) = 0,35 + 0,05·t + 0·t<sup>2</sup></td></tr>
+<tr><td><strong>E<sub>2</sub>(t)</strong></td><td>Количество задействованных (доступных) сил пожарной охраны</td><td>E<sub>2</sub>(t) = 0,3 + 0,15·t + 0·t<sup>2</sup></td></tr>
+<tr><td><strong>E<sub>3</sub>(t)</strong></td><td>Климатический район предприятия</td><td>E<sub>3</sub>(t) = 0,15 + 0·t + 0·t<sup>2</sup></td></tr>
+<tr><td><strong>E<sub>4</sub>(t)</strong></td><td>Цены на оборудование</td><td>E<sub>4</sub>(t) = 0,15 + 0,05·t + 0·t<sup>2</sup></td></tr>
+<tr><td><strong>E<sub>5</sub>(t)</strong></td><td>Количество инструктажей пожарной безопасности</td><td>E<sub>5</sub>(t) = 0,25 + 0,1·t + 0·t<sup>2</sup></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="method-card">
+    <h2>3. Система дифференциальных уравнений (3)</h2>
+    <p>На основе матрицы причинно-следственных связей между переменными состояния и внешними факторами составлена нелинейная система пятнадцати обыкновенных дифференциальных уравнений первого порядка:</p>
+    <div class="eq-list">
+<div class="eq-item"><strong>dX<sub>1</sub>/dt</strong> = f<sub>1</sub>(X<sub>5</sub>) · f<sub>2</sub>(X<sub>6</sub>) · f<sub>3</sub>(X<sub>9</sub>) · f<sub>4</sub>(X<sub>10</sub>) · f<sub>5</sub>(X<sub>13</sub>) · f<sub>6</sub>(X<sub>15</sub>) · E<sub>1</sub>(t) − (E<sub>2</sub>(t) + E<sub>5</sub>(t))</div>
+<div class="eq-item"><strong>dX<sub>2</sub>/dt</strong> = f<sub>7</sub>(X<sub>5</sub>) · f<sub>8</sub>(X<sub>10</sub>) · f<sub>9</sub>(X<sub>13</sub>) · f<sub>10</sub>(X<sub>15</sub>) · E<sub>1</sub>(t) − (E<sub>2</sub>(t) + E<sub>5</sub>(t))</div>
+<div class="eq-item"><strong>dX<sub>3</sub>/dt</strong> = f<sub>11</sub>(X<sub>4</sub>) · f<sub>12</sub>(X<sub>5</sub>) · f<sub>13</sub>(X<sub>6</sub>) · f<sub>14</sub>(X<sub>7</sub>) · f<sub>15</sub>(X<sub>8</sub>) · f<sub>16</sub>(X<sub>9</sub>) · f<sub>17</sub>(X<sub>11</sub>) · f<sub>18</sub>(X<sub>12</sub>) · f<sub>19</sub>(X<sub>13</sub>) · f<sub>20</sub>(X<sub>14</sub>) · f<sub>21</sub>(X<sub>15</sub>) · E<sub>1</sub>(t) − E<sub>2</sub>(t)</div>
+<div class="eq-item"><strong>dX<sub>4</sub>/dt</strong> = f<sub>22</sub>(X<sub>5</sub>) · f<sub>23</sub>(X<sub>7</sub>) · f<sub>24</sub>(X<sub>9</sub>) · f<sub>25</sub>(X<sub>11</sub>) · f<sub>26</sub>(X<sub>12</sub>) · f<sub>27</sub>(X<sub>14</sub>) · E<sub>4</sub>(t) − E<sub>5</sub>(t)</div>
+<div class="eq-item"><strong>dX<sub>5</sub>/dt</strong> = f<sub>28</sub>(X<sub>4</sub>) · f<sub>29</sub>(X<sub>7</sub>) · f<sub>30</sub>(X<sub>8</sub>) · f<sub>31</sub>(X<sub>11</sub>) · E<sub>4</sub>(t) − f<sub>32</sub>(X<sub>14</sub>)</div>
+<div class="eq-item"><strong>dX<sub>6</sub>/dt</strong> = f<sub>33</sub>(X<sub>4</sub>) · f<sub>34</sub>(X<sub>7</sub>) · f<sub>35</sub>(X<sub>8</sub>) · f<sub>36</sub>(X<sub>11</sub>) · f<sub>37</sub>(X<sub>13</sub>) · (E<sub>3</sub>(t) + E<sub>4</sub>(t)) − E<sub>5</sub>(t)</div>
+<div class="eq-item"><strong>dX<sub>7</sub>/dt</strong> = f<sub>38</sub>(X<sub>6</sub>) · f<sub>39</sub>(X<sub>11</sub>) · f<sub>40</sub>(X<sub>15</sub>) · (E<sub>3</sub>(t) + E<sub>4</sub>(t)) − f<sub>41</sub>(X<sub>14</sub>)</div>
+<div class="eq-item"><strong>dX<sub>8</sub>/dt</strong> = f<sub>42</sub>(X<sub>7</sub>) · f<sub>43</sub>(X<sub>9</sub>) · f<sub>44</sub>(X<sub>11</sub>) · f<sub>45</sub>(X<sub>15</sub>) · (E<sub>1</sub>(t) + E<sub>3</sub>(t)) − f<sub>46</sub>(X<sub>14</sub>)</div>
+<div class="eq-item"><strong>dX<sub>9</sub>/dt</strong> = f<sub>47</sub>(X<sub>5</sub>) · (E<sub>3</sub>(t) + E<sub>4</sub>(t))</div>
+<div class="eq-item"><strong>dX<sub>10</sub>/dt</strong> = f<sub>48</sub>(X<sub>4</sub>) · f<sub>49</sub>(X<sub>7</sub>) · f<sub>50</sub>(X<sub>8</sub>) · f<sub>51</sub>(X<sub>12</sub>) · E<sub>4</sub>(t)</div>
+<div class="eq-item"><strong>dX<sub>11</sub>/dt</strong> = f<sub>52</sub>(X<sub>4</sub>) · f<sub>53</sub>(X<sub>5</sub>) · f<sub>54</sub>(X<sub>7</sub>) · f<sub>55</sub>(X<sub>15</sub>) · E<sub>4</sub>(t) − f<sub>56</sub>(X<sub>14</sub>) · E<sub>5</sub>(t)</div>
+<div class="eq-item"><strong>dX<sub>12</sub>/dt</strong> = f<sub>57</sub>(X<sub>4</sub>) · f<sub>58</sub>(X<sub>15</sub>) · (E<sub>3</sub>(t) + E<sub>4</sub>(t)) − f<sub>59</sub>(X<sub>14</sub>) · E<sub>5</sub>(t)</div>
+<div class="eq-item"><strong>dX<sub>13</sub>/dt</strong> = f<sub>60</sub>(X<sub>4</sub>) · f<sub>61</sub>(X<sub>8</sub>) · f<sub>62</sub>(X<sub>12</sub>) · (E<sub>1</sub>(t) + E<sub>3</sub>(t))</div>
+<div class="eq-item"><strong>dX<sub>14</sub>/dt</strong> = f<sub>63</sub>(X<sub>8</sub>) · f<sub>64</sub>(X<sub>9</sub>) · f<sub>65</sub>(X<sub>13</sub>) · E<sub>1</sub>(t) − f<sub>66</sub>(X<sub>4</sub>) · f<sub>67</sub>(X<sub>5</sub>) · f<sub>68</sub>(X<sub>6</sub>) · f<sub>69</sub>(X<sub>7</sub>) · f<sub>70</sub>(X<sub>11</sub>) · f<sub>71</sub>(X<sub>12</sub>) · f<sub>72</sub>(X<sub>14</sub>) · E<sub>5</sub>(t)</div>
+<div class="eq-item"><strong>dX<sub>15</sub>/dt</strong> = f<sub>73</sub>(X<sub>6</sub>) · f<sub>74</sub>(X<sub>7</sub>) · f<sub>75</sub>(X<sub>8</sub>) · f<sub>76</sub>(X<sub>9</sub>) · f<sub>77</sub>(X<sub>11</sub>) · E<sub>1</sub>(t) − f<sub>78</sub>(X<sub>15</sub>)</div>
+    </div>
+  </section>
+
+  <section class="method-card">
+    <h2>4. Численный метод Рунге–Кутта 4-го порядка</h2>
+    <p>Задача Коши при заданных начальных условиях <strong>X<sub>i</sub>(0) ∈ [0; 1]</strong> решается численно методом Рунге–Кутта 4-го порядка с шагом <em>h = T / N</em> (<em>N</em> = 200) при соблюдении ограничений нормированной шкалы <strong>0 ≤ X<sub>i</sub>(t) ≤ 1</strong>:</p>
+    <div class="formula-box">
+      k<sub>1</sub> = F(t<sub>n</sub>, X<sub>n</sub>), &nbsp;
+      k<sub>2</sub> = F(t<sub>n</sub> + h/2, X<sub>n</sub> + h·k<sub>1</sub>/2), &nbsp;
+      k<sub>3</sub> = F(t<sub>n</sub> + h/2, X<sub>n</sub> + h·k<sub>2</sub>/2), &nbsp;
+      k<sub>4</sub> = F(t<sub>n</sub> + h, X<sub>n</sub> + h·k<sub>3</sub>),<br>
+      X<sub>n+1</sub> = X<sub>n</sub> + (h / 6)·(k<sub>1</sub> + 2k<sub>2</sub> + 2k<sub>3</sub> + k<sub>4</sub>).
+    </div>
+  </section>
+
+  <section class="method-card">
+    <h2>5. Внутренние полиномиальные функции f<sub>1</sub>(X)–f<sub>78</sub>(X)</h2>
+    <p>Причинно-следственные зависимости между нормированными характеристиками аппроксимированы по методу наименьших квадратов квадратичными полиномами вида <strong>f<sub>k</sub>(X<sub>j</sub>) = β<sub>0</sub> + β<sub>1</sub>·X<sub>j</sub> + β<sub>2</sub>·X<sub>j</sub><sup>2</sup></strong>. В рабочем окне калькулятора все 78 функций представлены единым непрерывным списком для прямого редактирования коэффициентов.</p>
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Функция</th>
+            <th>Влияние</th>
+            <th>Квадратичный полином f<sub>k</sub>(X<sub>j</sub>) = β<sub>0</sub> + β<sub>1</sub>·X<sub>j</sub> + β<sub>2</sub>·X<sub>j</sub><sup>2</sup></th>
+          </tr>
+        </thead>
+        <tbody>
+<tr><td><strong>f<sub>1</sub></strong></td><td>X<sub>5</sub> → X<sub>1</sub></td><td class="poly-cell"><strong>f<sub>1</sub>(X<sub>5</sub>)</strong> = 0,66 + 0,759·X<sub>5</sub> − 0,566·X<sub>5</sub><sup>2</sup></td></tr>
+<tr><td><strong>f<sub>2</sub></strong></td><td>X<sub>6</sub> → X<sub>1</sub></td><td class="poly-cell"><strong>f<sub>2</sub>(X<sub>6</sub>)</strong> = 0,886 − 0,155·X<sub>6</sub> + 0,218·X<sub>6</sub><sup>2</sup></td></tr>
+<tr><td><strong>f<sub>3</sub></strong></td><td>X<sub>9</sub> → X<sub>1</sub></td><td class="poly-cell"><strong>f<sub>3</sub>(X<sub>9</sub>)</strong> = 0,928 − 0,0928·X<sub>9</sub> − 0,00627·X<sub>9</sub><sup>2</sup></td></tr>
+<tr><td><strong>f<sub>4</sub></strong></td><td>X<sub>10</sub> → X<sub>1</sub></td><td class="poly-cell"><strong>f<sub>4</sub>(X<sub>10</sub>)</strong> = -1,75 + 6,01·X<sub>10</sub> − 3,4·X<sub>10</sub><sup>2</sup></td></tr>
+<tr><td><strong>f<sub>5</sub></strong></td><td>X<sub>13</sub> → X<sub>1</sub></td><td class="poly-cell"><strong>f<sub>5</sub>(X<sub>13</sub>)</strong> = 0,83 + 0,206·X<sub>13</sub> − 0,154·X<sub>13</sub><sup>2</sup></td></tr>
+<tr><td><strong>f<sub>6</sub></strong></td><td>X<sub>15</sub> → X<sub>1</sub></td><td class="poly-cell"><strong>f<sub>6</sub>(X<sub>15</sub>)</strong> = 1,07 − 0,73·X<sub>15</sub> + 0,643·X<sub>15</sub><sup>2</sup></td></tr>
+<tr><td><strong>f<sub>7</sub></strong></td><td>X<sub>5</sub> → X<sub>2</sub></td><td class="poly-cell"><strong>f<sub>7</sub>(X<sub>5</sub>)</strong> = 0,791 + 0,374·X<sub>5</sub> − 0,421·X<sub>5</sub><sup>2</sup></td></tr>
+<tr><td><strong>f<sub>8</sub></strong></td><td>X<sub>10</sub> → X<sub>2</sub></td><td class="poly-cell"><strong>f<sub>8</sub>(X<sub>10</sub>)</strong> = 0,508 + 0,865·X<sub>10</sub> − 0,538·X<sub>10</sub><sup>2</sup></td></tr>
+<tr><td><strong>f<sub>9</sub></strong></td><td>X<sub>13</sub> → X<sub>2</sub></td><td class="poly-cell"><strong>f<sub>9</sub>(X<sub>13</sub>)</strong> = 0,632 + 0,894·X<sub>13</sub> − 0,785·X<sub>13</sub><sup>2</sup></td></tr>
+<tr><td><strong>f<sub>10</sub></strong></td><td>X<sub>15</sub> → X<sub>2</sub></td><td class="poly-cell"><strong>f<sub>10</sub>(X<sub>15</sub>)</strong> = 0,731 − 0,0611·X<sub>15</sub> + 0,313·X<sub>15</sub><sup>2</sup></td></tr>
+<tr><td><strong>f<sub>11</sub></strong></td><td>X<sub>4</sub> → X<sub>3</sub></td><td class="poly-cell"><strong>f<sub>11</sub>(X<sub>4</sub>)</strong> = 0,694 + 0,0898·X<sub>4</sub> + 0,186·X<sub>4</sub><sup>2</sup></td></tr>
+<tr><td><strong>f<sub>12</sub></strong></td><td>X<sub>5</sub> → X<sub>3</sub></td><td class="poly-cell"><strong>f<sub>12</sub>(X<sub>5</sub>)</strong> = -0,409 + 3,31·X<sub>5</sub> − 2,02·X<sub>5</sub><sup>2</sup></td></tr>
+<tr><td><strong>f<sub>13</sub></strong></td><td>X<sub>6</sub> → X<sub>3</sub></td><td class="poly-cell"><strong>f<sub>13</sub>(X<sub>6</sub>)</strong> = 0,714 + 0,79·X<sub>6</sub> − 0,855·X<sub>6</sub><sup>2</sup></td></tr>
+<tr><td><strong>f<sub>14</sub></strong></td><td>X<sub>7</sub> → X<sub>3</sub></td><td class="poly-cell"><strong>f<sub>14</sub>(X<sub>7</sub>)</strong> = 0,729 + 0,0282·X<sub>7</sub> + 0,239·X<sub>7</sub><sup>2</sup></td></tr>
+<tr><td><strong>f<sub>15</sub></strong></td><td>X<sub>8</sub> → X<sub>3</sub></td><td class="poly-cell"><strong>f<sub>15</sub>(X<sub>8</sub>)</strong> = 0,797 − 0,18·X<sub>8</sub> + 0,106·X<sub>8</sub><sup>2</sup></td></tr>
+<tr><td><strong>f<sub>16</sub></strong></td><td>X<sub>9</sub> → X<sub>3</sub></td><td class="poly-cell"><strong>f<sub>16</sub>(X<sub>9</sub>)</strong> = 0,752 + 0,0439·X<sub>9</sub> + 0,0213·X<sub>9</sub><sup>2</sup></td></tr>
+<tr><td><strong>f<sub>17</sub></strong></td><td>X<sub>11</sub> → X<sub>3</sub></td><td class="poly-cell"><strong>f<sub>17</sub>(X<sub>11</sub>)</strong> = 0,851 − 0,164·X<sub>11</sub> − 0,0481·X<sub>11</sub><sup>2</sup></td></tr>
+<tr><td><strong>f<sub>18</sub></strong></td><td>X<sub>12</sub> → X<sub>3</sub></td><td class="poly-cell"><strong>f<sub>18</sub>(X<sub>12</sub>)</strong> = 0,775 + 0,214·X<sub>12</sub> − 0,311·X<sub>12</sub><sup>2</sup></td></tr>
+<tr><td><strong>f<sub>19</sub></strong></td><td>X<sub>13</sub> → X<sub>3</sub></td><td class="poly-cell"><strong>f<sub>19</sub>(X<sub>13</sub>)</strong> = 0,827 − 0,119·X<sub>13</sub> + 0,0415·X<sub>13</sub><sup>2</sup></td></tr>
+<tr><td><strong>f<sub>20</sub></strong></td><td>X<sub>14</sub> → X<sub>3</sub></td><td class="poly-cell"><strong>f<sub>20</sub>(X<sub>14</sub>)</strong> = 0,977 − 1,36·X<sub>14</sub> + 1,1·X<sub>14</sub><sup>2</sup></td></tr>
+<tr><td><strong>f<sub>21</sub></strong></td><td>X<sub>15</sub> → X<sub>3</sub></td><td class="poly-cell"><strong>f<sub>21</sub>(X<sub>15</sub>)</strong> = 1,55 − 2,46·X<sub>15</sub> + 1,82·X<sub>15</sub><sup>2</sup></td></tr>
+<tr><td><strong>f<sub>22</sub></strong></td><td>X<sub>5</sub> → X<sub>4</sub></td><td class="poly-cell"><strong>f<sub>22</sub>(X<sub>5</sub>)</strong> = -2,23 + 8,3·X<sub>5</sub> − 5,92·X<sub>5</sub><sup>2</sup></td></tr>
+<tr><td><strong>f<sub>23</sub></strong></td><td>X<sub>7</sub> → X<sub>4</sub></td><td class="poly-cell"><strong>f<sub>23</sub>(X<sub>7</sub>)</strong> = 0,39 − 0,871·X<sub>7</sub> + 1,48·X<sub>7</sub><sup>2</sup></td></tr>
+<tr><td><strong>f<sub>24</sub></strong></td><td>X<sub>9</sub> → X<sub>4</sub></td><td class="poly-cell"><strong>f<sub>24</sub>(X<sub>9</sub>)</strong> = 0,254 + 1,03·X<sub>9</sub> − 1,14·X<sub>9</sub><sup>2</sup></td></tr>
+<tr><td><strong>f<sub>25</sub></strong></td><td>X<sub>11</sub> → X<sub>4</sub></td><td class="poly-cell"><strong>f<sub>25</sub>(X<sub>11</sub>)</strong> = 0,602 − 0,787·X<sub>11</sub> + 0,351·X<sub>11</sub><sup>2</sup></td></tr>
+<tr><td><strong>f<sub>26</sub></strong></td><td>X<sub>12</sub> → X<sub>4</sub></td><td class="poly-cell"><strong>f<sub>26</sub>(X<sub>12</sub>)</strong> = 0,462 − 0,202·X<sub>12</sub> − 0,0408·X<sub>12</sub><sup>2</sup></td></tr>
+<tr><td><strong>f<sub>27</sub></strong></td><td>X<sub>14</sub> → X<sub>4</sub></td><td class="poly-cell"><strong>f<sub>27</sub>(X<sub>14</sub>)</strong> = 0,558 − 1,21·X<sub>14</sub> + 1,04·X<sub>14</sub><sup>2</sup></td></tr>
+<tr><td><strong>f<sub>28</sub></strong></td><td>X<sub>4</sub> → X<sub>5</sub></td><td class="poly-cell"><strong>f<sub>28</sub>(X<sub>4</sub>)</strong> = 0,517 + 0,522·X<sub>4</sub> − 0,473·X<sub>4</sub><sup>2</sup></td></tr>
+<tr><td><strong>f<sub>29</sub></strong></td><td>X<sub>7</sub> → X<sub>5</sub></td><td class="poly-cell"><strong>f<sub>29</sub>(X<sub>7</sub>)</strong> = 0,466 + 1,03·X<sub>7</sub> − 0,895·X<sub>7</sub><sup>2</sup></td></tr>
+<tr><td><strong>f<sub>30</sub></strong></td><td>X<sub>8</sub> → X<sub>5</sub></td><td class="poly-cell"><strong>f<sub>30</sub>(X<sub>8</sub>)</strong> = 0,497 + 1,49·X<sub>8</sub> − 1,45·X<sub>8</sub><sup>2</sup></td></tr>
+<tr><td><strong>f<sub>31</sub></strong></td><td>X<sub>11</sub> → X<sub>5</sub></td><td class="poly-cell"><strong>f<sub>31</sub>(X<sub>11</sub>)</strong> = 0,633 + 0,206·X<sub>11</sub> − 0,419·X<sub>11</sub><sup>2</sup></td></tr>
+<tr><td><strong>f<sub>32</sub></strong></td><td>X<sub>14</sub> → X<sub>5</sub></td><td class="poly-cell"><strong>f<sub>32</sub>(X<sub>14</sub>)</strong> = 0,817 − 1,41·X<sub>14</sub> + 1,11·X<sub>14</sub><sup>2</sup></td></tr>
+<tr><td><strong>f<sub>33</sub></strong></td><td>X<sub>4</sub> → X<sub>6</sub></td><td class="poly-cell"><strong>f<sub>33</sub>(X<sub>4</sub>)</strong> = 0,749 − 2,41·X<sub>4</sub> + 2,41·X<sub>4</sub><sup>2</sup></td></tr>
+<tr><td><strong>f<sub>34</sub></strong></td><td>X<sub>7</sub> → X<sub>6</sub></td><td class="poly-cell"><strong>f<sub>34</sub>(X<sub>7</sub>)</strong> = -0,04 + 2,73·X<sub>7</sub> − 1,83·X<sub>7</sub><sup>2</sup></td></tr>
+<tr><td><strong>f<sub>35</sub></strong></td><td>X<sub>8</sub> → X<sub>6</sub></td><td class="poly-cell"><strong>f<sub>35</sub>(X<sub>8</sub>)</strong> = 0,701 − 3,2·X<sub>8</sub> + 2,63·X<sub>8</sub><sup>2</sup></td></tr>
+<tr><td><strong>f<sub>36</sub></strong></td><td>X<sub>11</sub> → X<sub>6</sub></td><td class="poly-cell"><strong>f<sub>36</sub>(X<sub>11</sub>)</strong> = 0,393 − 0,0128·X<sub>11</sub> + 0,0645·X<sub>11</sub><sup>2</sup></td></tr>
+<tr><td><strong>f<sub>37</sub></strong></td><td>X<sub>13</sub> → X<sub>6</sub></td><td class="poly-cell"><strong>f<sub>37</sub>(X<sub>13</sub>)</strong> = 0,0571 + 1,87·X<sub>13</sub> − 1,9·X<sub>13</sub><sup>2</sup></td></tr>
+<tr><td><strong>f<sub>38</sub></strong></td><td>X<sub>6</sub> → X<sub>7</sub></td><td class="poly-cell"><strong>f<sub>38</sub>(X<sub>6</sub>)</strong> = -0,0369 + 1,56·X<sub>6</sub> − 1,07·X<sub>6</sub><sup>2</sup></td></tr>
+<tr><td><strong>f<sub>39</sub></strong></td><td>X<sub>11</sub> → X<sub>7</sub></td><td class="poly-cell"><strong>f<sub>39</sub>(X<sub>11</sub>)</strong> = 0,365 − 0,308·X<sub>11</sub> + 0,0856·X<sub>11</sub><sup>2</sup></td></tr>
+<tr><td><strong>f<sub>40</sub></strong></td><td>X<sub>15</sub> → X<sub>7</sub></td><td class="poly-cell"><strong>f<sub>40</sub>(X<sub>15</sub>)</strong> = 1,65 − 5,48·X<sub>15</sub> + 4,75·X<sub>15</sub><sup>2</sup></td></tr>
+<tr><td><strong>f<sub>41</sub></strong></td><td>X<sub>14</sub> → X<sub>7</sub></td><td class="poly-cell"><strong>f<sub>41</sub>(X<sub>14</sub>)</strong> = 0,393 − 0,575·X<sub>14</sub> + 0,222·X<sub>14</sub><sup>2</sup></td></tr>
+<tr><td><strong>f<sub>42</sub></strong></td><td>X<sub>7</sub> → X<sub>8</sub></td><td class="poly-cell"><strong>f<sub>42</sub>(X<sub>7</sub>)</strong> = 0,576 − 2,64·X<sub>7</sub> + 2,13·X<sub>7</sub><sup>2</sup></td></tr>
+<tr><td><strong>f<sub>43</sub></strong></td><td>X<sub>9</sub> → X<sub>8</sub></td><td class="poly-cell"><strong>f<sub>43</sub>(X<sub>9</sub>)</strong> = 0,0691 + 0,84·X<sub>9</sub> − 0,825·X<sub>9</sub><sup>2</sup></td></tr>
+<tr><td><strong>f<sub>44</sub></strong></td><td>X<sub>11</sub> → X<sub>8</sub></td><td class="poly-cell"><strong>f<sub>44</sub>(X<sub>11</sub>)</strong> = -0,224 + 2,86·X<sub>11</sub> − 2,61·X<sub>11</sub><sup>2</sup></td></tr>
+<tr><td><strong>f<sub>45</sub></strong></td><td>X<sub>15</sub> → X<sub>8</sub></td><td class="poly-cell"><strong>f<sub>45</sub>(X<sub>15</sub>)</strong> = 3,21 − 7,87·X<sub>15</sub> + 4,79·X<sub>15</sub><sup>2</sup></td></tr>
+<tr><td><strong>f<sub>46</sub></strong></td><td>X<sub>14</sub> → X<sub>8</sub></td><td class="poly-cell"><strong>f<sub>46</sub>(X<sub>14</sub>)</strong> = 0,185 − 0,964·X<sub>14</sub> + 1,78·X<sub>14</sub><sup>2</sup></td></tr>
+<tr><td><strong>f<sub>47</sub></strong></td><td>X<sub>5</sub> → X<sub>9</sub></td><td class="poly-cell"><strong>f<sub>47</sub>(X<sub>5</sub>)</strong> = 0,791 + 0,374·X<sub>5</sub> − 0,421·X<sub>5</sub><sup>2</sup></td></tr>
+<tr><td><strong>f<sub>48</sub></strong></td><td>X<sub>4</sub> → X<sub>10</sub></td><td class="poly-cell"><strong>f<sub>48</sub>(X<sub>4</sub>)</strong> = 0,846 + 0,327·X<sub>4</sub> − 0,305·X<sub>4</sub><sup>2</sup></td></tr>
+<tr><td><strong>f<sub>49</sub></strong></td><td>X<sub>7</sub> → X<sub>10</sub></td><td class="poly-cell"><strong>f<sub>49</sub>(X<sub>7</sub>)</strong> = 0,925 − 0,112·X<sub>7</sub> + 0,0196·X<sub>7</sub><sup>2</sup></td></tr>
+<tr><td><strong>f<sub>50</sub></strong></td><td>X<sub>8</sub> → X<sub>10</sub></td><td class="poly-cell"><strong>f<sub>50</sub>(X<sub>8</sub>)</strong> = 0,819 + 1·X<sub>8</sub> − 0,924·X<sub>8</sub><sup>2</sup></td></tr>
+<tr><td><strong>f<sub>51</sub></strong></td><td>X<sub>12</sub> → X<sub>10</sub></td><td class="poly-cell"><strong>f<sub>51</sub>(X<sub>12</sub>)</strong> = 0,837 + 0,481·X<sub>12</sub> − 0,419·X<sub>12</sub><sup>2</sup></td></tr>
+<tr><td><strong>f<sub>52</sub></strong></td><td>X<sub>4</sub> → X<sub>11</sub></td><td class="poly-cell"><strong>f<sub>52</sub>(X<sub>4</sub>)</strong> = 0,626 − 0,8·X<sub>4</sub> + 0,297·X<sub>4</sub><sup>2</sup></td></tr>
+<tr><td><strong>f<sub>53</sub></strong></td><td>X<sub>5</sub> → X<sub>11</sub></td><td class="poly-cell"><strong>f<sub>53</sub>(X<sub>5</sub>)</strong> = 1,58 − 3,14·X<sub>5</sub> + 1,75·X<sub>5</sub><sup>2</sup></td></tr>
+<tr><td><strong>f<sub>54</sub></strong></td><td>X<sub>7</sub> → X<sub>11</sub></td><td class="poly-cell"><strong>f<sub>54</sub>(X<sub>7</sub>)</strong> = 0,483 − 0,437·X<sub>7</sub> + 0,142·X<sub>7</sub><sup>2</sup></td></tr>
+<tr><td><strong>f<sub>55</sub></strong></td><td>X<sub>15</sub> → X<sub>11</sub></td><td class="poly-cell"><strong>f<sub>55</sub>(X<sub>15</sub>)</strong> = -0,178 + 2,14·X<sub>15</sub> − 1,8·X<sub>15</sub><sup>2</sup></td></tr>
+<tr><td><strong>f<sub>56</sub></strong></td><td>X<sub>14</sub> → X<sub>11</sub></td><td class="poly-cell"><strong>f<sub>56</sub>(X<sub>14</sub>)</strong> = 0,47 − 0,541·X<sub>14</sub> + 0,431·X<sub>14</sub><sup>2</sup></td></tr>
+<tr><td><strong>f<sub>57</sub></strong></td><td>X<sub>4</sub> → X<sub>12</sub></td><td class="poly-cell"><strong>f<sub>57</sub>(X<sub>4</sub>)</strong> = 0,27 + 0,761·X<sub>4</sub> − 0,996·X<sub>4</sub><sup>2</sup></td></tr>
+<tr><td><strong>f<sub>58</sub></strong></td><td>X<sub>15</sub> → X<sub>12</sub></td><td class="poly-cell"><strong>f<sub>58</sub>(X<sub>15</sub>)</strong> = 1,93 − 3,45·X<sub>15</sub> + 1,52·X<sub>15</sub><sup>2</sup></td></tr>
+<tr><td><strong>f<sub>59</sub></strong></td><td>X<sub>14</sub> → X<sub>12</sub></td><td class="poly-cell"><strong>f<sub>59</sub>(X<sub>14</sub>)</strong> = 0,658 − 3,06·X<sub>14</sub> + 3,22·X<sub>14</sub><sup>2</sup></td></tr>
+<tr><td><strong>f<sub>60</sub></strong></td><td>X<sub>4</sub> → X<sub>13</sub></td><td class="poly-cell"><strong>f<sub>60</sub>(X<sub>4</sub>)</strong> = 0,483 + 0,523·X<sub>4</sub> − 0,44·X<sub>4</sub><sup>2</sup></td></tr>
+<tr><td><strong>f<sub>61</sub></strong></td><td>X<sub>8</sub> → X<sub>13</sub></td><td class="poly-cell"><strong>f<sub>61</sub>(X<sub>8</sub>)</strong> = 0,347 + 2,08·X<sub>8</sub> − 1,42·X<sub>8</sub><sup>2</sup></td></tr>
+<tr><td><strong>f<sub>62</sub></strong></td><td>X<sub>12</sub> → X<sub>13</sub></td><td class="poly-cell"><strong>f<sub>62</sub>(X<sub>12</sub>)</strong> = 0,321 + 1,62·X<sub>12</sub> − 1,18·X<sub>12</sub><sup>2</sup></td></tr>
+<tr><td><strong>f<sub>63</sub></strong></td><td>X<sub>8</sub> → X<sub>14</sub></td><td class="poly-cell"><strong>f<sub>63</sub>(X<sub>8</sub>)</strong> = 0,268 − 1,26·X<sub>8</sub> + 1,99·X<sub>8</sub><sup>2</sup></td></tr>
+<tr><td><strong>f<sub>64</sub></strong></td><td>X<sub>9</sub> → X<sub>14</sub></td><td class="poly-cell"><strong>f<sub>64</sub>(X<sub>9</sub>)</strong> = 0,28 + 0,357·X<sub>9</sub> − 0,596·X<sub>9</sub><sup>2</sup></td></tr>
+<tr><td><strong>f<sub>65</sub></strong></td><td>X<sub>13</sub> → X<sub>14</sub></td><td class="poly-cell"><strong>f<sub>65</sub>(X<sub>13</sub>)</strong> = 0,804 − 2,95·X<sub>13</sub> + 3,07·X<sub>13</sub><sup>2</sup></td></tr>
+<tr><td><strong>f<sub>66</sub></strong></td><td>X<sub>4</sub> → X<sub>14</sub></td><td class="poly-cell"><strong>f<sub>66</sub>(X<sub>4</sub>)</strong> = -0,0768 + 2,35·X<sub>4</sub> − 2,26·X<sub>4</sub><sup>2</sup></td></tr>
+<tr><td><strong>f<sub>67</sub></strong></td><td>X<sub>5</sub> → X<sub>14</sub></td><td class="poly-cell"><strong>f<sub>67</sub>(X<sub>5</sub>)</strong> = 0,388 + 0,0462·X<sub>5</sub> − 0,339·X<sub>5</sub><sup>2</sup></td></tr>
+<tr><td><strong>f<sub>68</sub></strong></td><td>X<sub>6</sub> → X<sub>14</sub></td><td class="poly-cell"><strong>f<sub>68</sub>(X<sub>6</sub>)</strong> = 0,262 + 0,273·X<sub>6</sub> − 0,306·X<sub>6</sub><sup>2</sup></td></tr>
+<tr><td><strong>f<sub>69</sub></strong></td><td>X<sub>7</sub> → X<sub>14</sub></td><td class="poly-cell"><strong>f<sub>69</sub>(X<sub>7</sub>)</strong> = 0,531 − 1,66·X<sub>7</sub> + 1,24·X<sub>7</sub><sup>2</sup></td></tr>
+<tr><td><strong>f<sub>70</sub></strong></td><td>X<sub>11</sub> → X<sub>14</sub></td><td class="poly-cell"><strong>f<sub>70</sub>(X<sub>11</sub>)</strong> = -0,0217 + 2,18·X<sub>11</sub> − 2,08·X<sub>11</sub><sup>2</sup></td></tr>
+<tr><td><strong>f<sub>71</sub></strong></td><td>X<sub>12</sub> → X<sub>14</sub></td><td class="poly-cell"><strong>f<sub>71</sub>(X<sub>12</sub>)</strong> = 0,000014 + 2,08·X<sub>12</sub> − 1,74·X<sub>12</sub><sup>2</sup></td></tr>
+<tr><td><strong>f<sub>72</sub></strong></td><td>X<sub>14</sub> → X<sub>14</sub></td><td class="poly-cell"><strong>f<sub>72</sub>(X<sub>14</sub>)</strong> = 0 + 1·X<sub>14</sub> + 0·X<sub>14</sub><sup>2</sup></td></tr>
+<tr><td><strong>f<sub>73</sub></strong></td><td>X<sub>6</sub> → X<sub>15</sub></td><td class="poly-cell"><strong>f<sub>73</sub>(X<sub>6</sub>)</strong> = 0,473 + 0,949·X<sub>6</sub> − 0,558·X<sub>6</sub><sup>2</sup></td></tr>
+<tr><td><strong>f<sub>74</sub></strong></td><td>X<sub>7</sub> → X<sub>15</sub></td><td class="poly-cell"><strong>f<sub>74</sub>(X<sub>7</sub>)</strong> = 0,496 + 1,02·X<sub>7</sub> − 0,519·X<sub>7</sub><sup>2</sup></td></tr>
+<tr><td><strong>f<sub>75</sub></strong></td><td>X<sub>8</sub> → X<sub>15</sub></td><td class="poly-cell"><strong>f<sub>75</sub>(X<sub>8</sub>)</strong> = 0,924 − 2,51·X<sub>8</sub> + 2,04·X<sub>8</sub><sup>2</sup></td></tr>
+<tr><td><strong>f<sub>76</sub></strong></td><td>X<sub>9</sub> → X<sub>15</sub></td><td class="poly-cell"><strong>f<sub>76</sub>(X<sub>9</sub>)</strong> = 0,873 − 0,619·X<sub>9</sub> + 0,241·X<sub>9</sub><sup>2</sup></td></tr>
+<tr><td><strong>f<sub>77</sub></strong></td><td>X<sub>11</sub> → X<sub>15</sub></td><td class="poly-cell"><strong>f<sub>77</sub>(X<sub>11</sub>)</strong> = 0,909 − 1,33·X<sub>11</sub> + 1,13·X<sub>11</sub><sup>2</sup></td></tr>
+<tr><td><strong>f<sub>78</sub></strong></td><td>X<sub>15</sub> → X<sub>15</sub></td><td class="poly-cell"><strong>f<sub>78</sub>(X<sub>15</sub>)</strong> = 0 + 1·X<sub>15</sub> + 0·X<sub>15</sub><sup>2</sup></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="method-card">
+    <h2>6. Список литературы</h2>
+    <ol class="lit-list">
+      <li>Путилов Д.И., Кушников В.А., Богомолов А.С. Модели и алгоритмы для ликвидации последствий пожара на промышленном предприятии по критерию минимума ущерба. Саратов: СГУ им. Н.Г. Чернышевского, СНЦ РАН.</li>
+      <li>Гончаренко В.С., Чечетина Т.А., Сибирко В.И., Надточий О.В., Полехин П.В., Козлов А.А., Грибанов А.М. Пожары и пожарная безопасность в 2022 году: информ.-аналитич. сб. Балашиха: ФГБУ ВНИИПО МЧС России, 2023. — 80 с.</li>
+      <li>Кушникова Е.В., Резчиков А.Ф., Иващенко В.А., Филимонюк Л.Ю. Модели и алгоритмы минимизации ущерба от атмосферных выбросов промышленных предприятий // Управление большими системами. 2015. № 57. С. 158–190.</li>
+      <li>Khamutova M., Rezchikov A., Kushnikov V. et al. Algorithms for the Management of Liquidation Process of Floods Consequences // Recent Research in Control Engineering and Decision Making. Springer, 2019. Vol. 199. P. 540–551.</li>
+      <li>Резчиков А.Ф., Кушников В.А., Иващенко В.А., Фоминых Д.С., Богомолов А.С., Филимонюк Л.Ю. Предотвращение критических сочетаний событий при сварке роботизированными технологическими комплексами // Проблемы машиностроения и надежности машин. 2017. № 4. С. 60–71.</li>
+      <li>Резчиков А.Ф., Кушников В.А., Иващенко В.А., Фоминых Д.С., Богомолов А.С., Филимонюк Л.Ю. Минимизация ущерба от нарушения технологического процесса в сварочных роботизированных технологических комплексах // Мехатроника, автоматизация, управление. 2017. Т. 18, № 5. С. 328–332.</li>
+      <li>Клюев В.В., Резчиков А.Ф., Кушников В.А., Богомолов А.С., Иващенко В.А., Филимонюк Л.Ю., Хамутова М.В. Информационно-управляющая система для поддержки принятия решений по ликвидации последствий наводнений // Вестник компьютерных и информационных технологий. 2016. № 11 (149). С. 39–45.</li>
+    </ol>
+  </section>
+</main>
+</body>
+</html>

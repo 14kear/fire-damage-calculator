@@ -1,266 +1,262 @@
-"""Two separate source systems with normalized inputs and editable functions.
-The article numerical example is complete; system (3) requires measured/scenario E coefficients.
-No inferred E, no clipped negative states.
+"""Математическая модель системной динамики последствий пожаров (15 уравнений, 5 возмущений, 78 полиномов).
+Не требует сторонних библиотек — работает на чистом Python 3.
 """
-import ast
 import json
 import math
-import re
-import operator
-from pathlib import Path
 from copy import deepcopy
-import numpy as np
-from scipy.integrate import solve_ivp
+from pathlib import Path
 
-DATA = json.loads((Path(__file__).parent / 'source_data.json').read_text())
-class InputError(ValueError): pass
+DATA = json.loads((Path(__file__).parent / 'source_data.json').read_text(encoding='utf-8'))
 
-def number(v, label, lo=-1e12, hi=1e12):
-    if v is None or isinstance(v, bool) or isinstance(v, str) and not v.strip():
-        raise InputError(label + ': заполните поле.')
-    try: v = float(v.replace(',', '.') if isinstance(v, str) else v)
-    except (TypeError, ValueError): raise InputError(label + ': требуется число.')
-    if not math.isfinite(v) or not lo <= v <= hi: raise InputError(f'{label}: допустимо от {lo:g} до {hi:g}.')
-    return v
 
-OPS = {ast.Add: operator.add, ast.Sub: operator.sub, ast.Mult: operator.mul,
-       ast.Div: operator.truediv, ast.Pow: operator.pow}
-FUNCS = {'sin': math.sin, 'cos': math.cos, 'exp': math.exp, 'log': math.log,
-         'sqrt': math.sqrt, 'abs': abs}
-class Expression:
-    """Restricted arithmetic AST: never eval user text or allow attributes/imports."""
-    def __init__(self, text, names, label, functions=None):
-        self.label = label
-        self.functions = {**FUNCS, **(functions or {})}
-        if not isinstance(text, str) or not text.strip() or len(text) > 1500:
-            raise InputError(label + ': введите формулу (до 1500 символов).')
-        try: self.tree = ast.parse(text.strip(), mode='eval').body
-        except SyntaxError: raise InputError(label + ': ошибка записи, используйте точку и ** для степени.')
-        if len(list(ast.walk(self.tree))) > 400: raise InputError(label + ': формула слишком сложная.')
-        def check(n, depth=0):
-            if depth > 60: raise InputError(label + ': слишком большая вложенность.')
-            if isinstance(n, ast.Constant):
-                if type(n.value) not in (float, int) or abs(n.value) > 1e12 or not math.isfinite(n.value):
-                    raise InputError(label + ': недопустимая константа.')
-            elif isinstance(n, ast.Name):
-                if n.id not in names: raise InputError(label + ': неизвестная переменная ' + n.id)
-            elif isinstance(n, ast.BinOp) and type(n.op) in OPS:
-                check(n.left, depth+1); check(n.right, depth+1)
-            elif isinstance(n, ast.UnaryOp) and type(n.op) in (ast.UAdd, ast.USub): check(n.operand, depth+1)
-            elif isinstance(n, ast.Call) and isinstance(n.func, ast.Name) and n.func.id in self.functions and len(n.args)==1 and not n.keywords:
-                check(n.args[0], depth+1)
-            else: raise InputError(label + ': разрешены только арифметика и перечисленные функции.')
-        check(self.tree)
-    def __call__(self, env):
-        def run(n):
-            if isinstance(n, ast.Constant): return float(n.value)
-            if isinstance(n, ast.Name): return env[n.id]
-            if isinstance(n, ast.UnaryOp): return -run(n.operand) if isinstance(n.op, ast.USub) else run(n.operand)
-            if isinstance(n, ast.Call): return self.functions[n.func.id](run(n.args[0]))
-            a,b=run(n.left),run(n.right)
-            if isinstance(n.op, ast.Pow) and abs(b)>12: raise ValueError('модуль степени больше 12')
-            return OPS[type(n.op)](a,b)
-        try:
-            v=float(run(self.tree))
-            if not math.isfinite(v) or abs(v)>1e15: raise ValueError('неограниченное значение')
-            return v
-        except (ValueError, TypeError, OverflowError, ZeroDivisionError) as e:
-            raise InputError(f'{self.label}: формула не определена ({e}).')
+class InputError(ValueError):
+    pass
 
-def default_parts():
-    plus=[]; minus=[]
-    for eq in DATA['equations']:
-        def product(ids):
-            return '*'.join(f'f{k}(x{DATA["polynomials"][k-1]["input"]})' for k in ids)
-        def external(ids): return '(' + '+'.join(f'e{k}' for k in ids) + ')'
-        a=product(eq['positive'])
-        if eq['external_positive']: a+='*'+external(eq['external_positive'])
-        b=product(eq['negative'])
-        if eq['external_negative']: b+='*'+external(eq['external_negative'])
-        if eq['external_subtract']: b=external(eq['external_subtract'])
-        plus.append(a or '0'); minus.append(b or '0')
-    return plus,minus
 
-def fit_coefficients():
-    """Reproduce all 78 fits directly from the eight raw observations."""
-    raw=np.array(DATA['raw'], dtype=float); normalized=raw/raw.max(axis=0)
-    out=[]
-    for p in DATA['polynomials']:
-        u=normalized[:,p['input']-1]; v=normalized[:,p['target']-1]
-        design=np.column_stack([np.ones(len(u)),u,u*u])
-        coefficients=np.linalg.lstsq(design,v,rcond=None)[0]
-        r2=1-float(np.sum((v-design@coefficients)**2)/np.sum((v-v.mean())**2))
-        out.append({**p,'coefficients':coefficients.tolist(),'r2':r2})
+def clean_num(v):
+    v = float(v)
+    return 0.0 if abs(v) < 1e-10 else round(v, 6)
+
+
+def parse_number(v, label, lo=-1e6, hi=1e6):
+    if v is None or isinstance(v, bool) or (isinstance(v, str) and not v.strip()):
+        raise InputError(f'{label}: заполните поле.')
+    try:
+        val = float(v.replace(',', '.') if isinstance(v, str) else v)
+    except (TypeError, ValueError):
+        raise InputError(f'{label}: требуется число.')
+    if not math.isfinite(val) or not (lo - 1e-12 <= val <= hi + 1e-12):
+        raise InputError(f'{label}: допустимо значение от {lo:g} до {hi:g}.')
+    return max(lo, min(hi, val))
+
+
+def build_base_functions():
+    raw_cat = DATA['function_catalogs']['article']
+    out = {}
+    for k in range(1, 79):
+        item = raw_cat[str(k)]
+        out[str(k)] = {
+            'id': item['id'],
+            'input': item['input'],
+            'target': item['target'],
+            'c2': clean_num(item['c']),
+            'c1': clean_num(item['b']),
+            'c0': clean_num(item['a']),
+        }
     return out
 
 
-DATA['polynomials'] = fit_coefficients()
-PLUS, MINUS = default_parts()
-ARTICLE = [re.sub(r'x\[(\d+)\]', lambda m: 'x'+str(int(m[1])+1), s) for s in DATA['literal_rhs']]
-def article_catalog():
-    catalog={};expressions=[]
-    mapping={(q['target'],q['input']):q['id'] for q in DATA['polynomials']}
-    def factors(node):
-        return factors(node.left)+factors(node.right) if isinstance(node,ast.BinOp) and isinstance(node.op,ast.Mult) else [node]
-    for i,source in enumerate(ARTICLE):
-        calls=[]
-        for node in factors(ast.parse(source,mode='eval').body):
-            names={n.id for n in ast.walk(node) if isinstance(n,ast.Name)}
-            if len(names)!=1:raise ValueError('Ambiguous source polynomial')
-            name=names.pop();j=int(name[1:]);fid=mapping[i+1,j]
-            text=ast.unparse(node).replace(name,'u')
-            # Read coefficients directly; evaluating at ±1 loses tiny printed terms.
-            def coefficients(n):
-                if isinstance(n,ast.Constant):return [float(n.value)]
-                if isinstance(n,ast.Name):return [0.,1.]
-                if isinstance(n,ast.UnaryOp):return [(-v if isinstance(n.op,ast.USub) else v) for v in coefficients(n.operand)]
-                left=coefficients(n.left)
-                if isinstance(n.op,ast.Pow):
-                    if not isinstance(n.right,ast.Constant) or n.right.value!=2:raise ValueError('Expected quadratic source')
-                    return np.convolve(left,left).tolist()
-                right=coefficients(n.right)
-                if isinstance(n.op,ast.Mult):return np.convolve(left,right).tolist()
-                size=max(len(left),len(right));left+= [0.]*(size-len(left));right+= [0.]*(size-len(right))
-                return [a-b if isinstance(n.op,ast.Sub) else a+b for a,b in zip(left,right)]
-            abc=coefficients(node)
-            if len(abc)>3:raise ValueError('Expected degree <= 2')
-            abc += [0.]*(3-len(abc))
-            catalog[str(fid)]=dict(id=fid,input=j,target=i+1,kind='quadratic',a=abc[0],b=abc[1],c=abc[2],expression=text)
-            calls.append(f'f{fid}(x{j})')
-        expressions.append('*'.join(calls))
-    return catalog,expressions
-ARTICLE_CATALOG,ARTICLE_CALLS=article_catalog()
-FULL_CATALOG={str(q['id']):dict(id=q['id'],input=q['input'],target=q['target'],kind='quadratic',a=q['coefficients'][0],b=q['coefficients'][1],c=q['coefficients'][2]) for q in DATA['polynomials']}
+BASE_FUNCTIONS = build_base_functions()
 
-def function_source(spec):
-    kind=spec.get('kind','quadratic')
-    if kind=='custom':
-        source=spec.get('expression','')
-        Expression(source,{'u'},'Функция f')
-        return source
-    a=number(spec.get('a',0),'Коэффициент a',-1e6,1e6);b=number(spec.get('b',0),'Коэффициент b',-1e6,1e6);c=number(spec.get('c',0),'Коэффициент c',-1e6,1e6)
-    if kind=='quadratic':return f'({a})+({b})*u+({c})*u**2'
-    if kind=='linear':return f'({a})+({b})*u'
-    if kind=='constant':return str(a)
-    if kind=='exponential':return f'({a})*exp(({b})*u)+({c})'
-    raise InputError('Неизвестный вид функции.')
+DEFAULT_PERTURBATIONS = [
+    {'a': 0.00, 'b': 0.05, 'c': 0.35},
+    {'a': 0.00, 'b': 0.15, 'c': 0.30},
+    {'a': 0.00, 'b': 0.00, 'c': 0.15},
+    {'a': 0.00, 'b': 0.05, 'c': 0.15},
+    {'a': 0.00, 'b': 0.10, 'c': 0.25},
+]
 
-def catalog(mode):return ARTICLE_CATALOG if mode=='article' else FULL_CATALOG
+DEFAULT = {
+    'duration': 1.0,
+    'steps': 200,
+    'initial': [round(float(x), 4) for x in DATA['article_initial']],
+    'limits': [round(float(x), 3) for x in DATA['limits'][2]],
+    'perturbations': deepcopy(DEFAULT_PERTURBATIONS),
+    'functions': {},
+}
 
-def preview(request):
-    mode=request.get('model','article');fid=str(request.get('function_id','1'))
-    if mode not in ['article','full'] or fid not in catalog(mode):raise InputError('Выберите функцию из списка.')
-    spec=request.get('function',catalog(mode)[fid]);fn=Expression(function_source(spec),{'u'},'Функция f')
-    original=Expression(function_source(catalog(mode)[fid]),{'u'},'Исходная функция')
-    u=np.linspace(0,1,101)
-    return dict(u=u.tolist(),values=[fn({'u':float(x)}) for x in u],original=[original({'u':float(x)}) for x in u],expression=function_source(spec))
 
-DEFAULT = dict(model='article',duration=.7,steps=200,method='RK4',initial=DATA['article_initial'],
-    external_start=[None]*5,external_slope=[None]*5,target=DATA['limits'][2],weights=[1/15]*15,functions={})
+def validate_parameters(raw):
+    if not isinstance(raw, dict):
+        raise InputError('Требуется набор числовых параметров.')
+    p = deepcopy(DEFAULT)
+    for k in DEFAULT:
+        if k in raw:
+            p[k] = raw[k]
 
-def parameters(raw):
-    if not isinstance(raw,dict): raise InputError('Требуется набор числовых параметров.')
-    p=deepcopy(DEFAULT);p.update({k:v for k,v in raw.items() if k in DEFAULT})
-    if p['model'] not in ['article','full']: raise InputError('Выберите модель из списка.')
-    p['duration']=number(p['duration'],'Конец интервала T',.001,5)
-    n=number(p['steps'],'Разбиение интервала',20,4000)
-    if n!=int(n) or int(n)%4: raise InputError('Разбиение должно быть целым и кратным четырём.')
-    p['steps']=int(n)
-    if p['method'] not in ['RK4','RK45']: raise InputError('Выберите RK4 или RK45.')
-    for key in ['initial','target','weights']:
-        if not isinstance(p[key],list) or len(p[key])!=15: raise InputError(f'{key}: требуется 15 чисел.')
-        p[key]=[number(v,f'{dict(initial="Начальное значение",target="Цель",weights="Вес")[key]}, X{i+1}',0,1) for i,v in enumerate(p[key])]
-    if not isinstance(p['functions'],dict) or len(p['functions'])>78:raise InputError('Некорректный набор функций.')
-    for fid,spec in p['functions'].items():
-        if fid not in catalog(p['model']):raise InputError('Неизвестная функция '+str(fid))
-        if not isinstance(spec,dict):raise InputError('Некорректная функция '+str(fid))
-        Expression(function_source(spec),{'u'},'f'+str(fid))
-    if not any(p['weights']): raise InputError('Хотя бы один вес должен быть больше нуля.')
-    if p['model']=='full':
-        for key in ['external_start','external_slope']:
-            if not isinstance(p[key],list) or len(p[key])!=5: raise InputError('Требуется пять наборов внешних параметров.')
-            label='начальное значение b' if key=='external_start' else 'изменение k'
-            p[key]=[number(v,f'E{i+1}, {label}',-1e6,1e6) for i,v in enumerate(p[key])]
-        for i,(b,k) in enumerate(zip(p['external_start'],p['external_slope'])):
-            if min(b,b+k*p['duration']) < 0 or max(b,b+k*p['duration'])>1: raise InputError(f'E{i+1}: нормированное воздействие должно оставаться в диапазоне 0–1 на выбранном интервале.')
-    else:
-        # This published numerical block has no E. Missing factors are NOT silently set to zero.
-        p['external_start']=[];p['external_slope']=[]
+    p['duration'] = parse_number(p['duration'], 'Интервал времени T', 0.1, 1.0)
+    steps = parse_number(p['steps'], 'Число шагов', 20, 2000)
+    if int(steps) != steps or int(steps) % 4 != 0:
+        raise InputError('Число шагов должно быть целым и кратным 4.')
+    p['steps'] = int(steps)
+
+    for key, title in (('initial', 'Начальное условие'), ('limits', 'Допустимое значение')):
+        arr = p[key]
+        if not isinstance(arr, list) or len(arr) != 15:
+            raise InputError(f'{title}: требуется 15 значений.')
+        p[key] = [parse_number(v, f'{title} X{i + 1}', 0.0, 1.0) for i, v in enumerate(arr)]
+
+    perts = p['perturbations']
+    if not isinstance(perts, list) or len(perts) != 5:
+        raise InputError('Возмущения: требуется 5 функций E₁…E₅.')
+    clean_perts = []
+    for m, spec in enumerate(perts):
+        if not isinstance(spec, dict):
+            raise InputError(f'Возмущение E{m + 1}: некорректный формат.')
+        clean_perts.append({
+            'a': parse_number(spec.get('a', 0.0), f'E{m + 1}, коэф. при t²', 0.0, 1.0),
+            'b': parse_number(spec.get('b', 0.0), f'E{m + 1}, коэф. при t', 0.0, 1.0),
+            'c': parse_number(spec.get('c', 0.0), f'E{m + 1}, свободный член', 0.0, 1.0),
+        })
+    p['perturbations'] = clean_perts
+
+    funcs = p.get('functions') or {}
+    if not isinstance(funcs, dict):
+        raise InputError('Некорректный формат внутренних функций.')
+    merged_funcs = deepcopy(BASE_FUNCTIONS)
+    for fid, spec in funcs.items():
+        key = str(fid)
+        if key not in merged_funcs or not isinstance(spec, dict):
+            raise InputError(f'Неизвестная функция f{fid}.')
+        merged_funcs[key]['c2'] = parse_number(spec.get('c2', merged_funcs[key]['c2']), f'f{key}, коэф. X²', -1e4, 1e4)
+        merged_funcs[key]['c1'] = parse_number(spec.get('c1', merged_funcs[key]['c1']), f'f{key}, коэф. X', -1e4, 1e4)
+        merged_funcs[key]['c0'] = parse_number(spec.get('c0', merged_funcs[key]['c0']), f'f{key}, своб. член', -1e4, 1e4)
+    p['resolved_functions'] = merged_funcs
     return p
 
-def prepare(p):
-    names={'t'}|{f'x{i}' for i in range(1,16)}|{f'e{i}' for i in range(1,6)}
-    functions={}
-    for fid,base in catalog(p['model']).items():
-        expr=Expression(function_source(p['functions'].get(fid,base)),{'u'},'f'+fid)
-        functions['f'+fid]=lambda u,expr=expr:expr({'u':u})
-    expressions=ARTICLE_CALLS if p['model']=='article' else ['('+a+')-('+b+')' for a,b in zip(PLUS,MINUS)]
-    terms=[Expression(s,names,f'X{i+1}',functions) for i,s in enumerate(expressions)]
-    target=np.array(p['target']);weights=np.array(p['weights']);calls=0
-    def factors(t):return [b+k*t for b,k in zip(p['external_start'],p['external_slope'])]
-    def rhs(t,y):
-        nonlocal calls
-        calls+=1
-        if calls>150000: raise InputError('Расчёт слишком долгий. Уменьшите интервал или значения параметров.')
-        env={'t':float(t),**{f'x{i+1}':float(v) for i,v in enumerate(y[:15])},**{f'e{i+1}':v for i,v in enumerate(factors(t))}}
-        values=[f(env) for f in terms]
-        return np.array(values+[float(np.sum(weights*(y[:15]-target)**2))])
-    return rhs,factors
 
-def rk4(rhs, initial, T, n):
-    t=np.linspace(0,T,n+1); y=np.empty((len(initial),n+1));y[:,0]=initial;h=T/n
-    for k in range(n):
-        a=rhs(t[k],y[:,k]);b=rhs(t[k]+h/2,y[:,k]+h*a/2)
-        c=rhs(t[k]+h/2,y[:,k]+h*b/2);d=rhs(t[k+1],y[:,k]+h*c)
-        y[:,k+1]=y[:,k]+h*(a+2*b+2*c+d)/6
-        if not np.all(np.isfinite(y[:,k+1])) or np.max(np.abs(y[:,k+1]))>1e9:
-            raise InputError(f'Решение неограниченно при t≈{t[k+1]:.6g}. Проверьте входные данные.')
-    return t,y
+def eval_perturbation(spec, t):
+    val = spec['a'] * t * t + spec['b'] * t + spec['c']
+    return max(0.0, min(1.0, val))
 
-def simulate(raw, verify=True):
-    p=parameters(raw);rhs,factors=prepare(p);T=p['duration'];n=p['steps'];initial=p['initial']+[0.]
-    if p['method']=='RK4':
-        t,y=rk4(rhs,initial,T,n)
-        _,fine=rk4(rhs,initial,T,2*n) if verify else (None,y)
-        difference=float(np.max(np.abs(y-fine[:,::2]))) if verify else None
-    else:
-        t=np.linspace(0,T,n+1)
-        sol=solve_ivp(rhs,(0,T),initial,t_eval=t,method='RK45',rtol=1e-9,atol=1e-11,max_step=T/100)
-        if not sol.success: raise InputError('RK45 не завершил расчёт: '+sol.message)
-        y=sol.y;difference=None
-    states=y[:15];ff=np.array([factors(ti) for ti in t]).T
-    invalid=np.argwhere(states < -1e-10);negative=sorted(set(int(i+1) for i,j in invalid))
-    first_negative=float(min(t[j] for i,j in invalid)) if len(invalid) else None
-    warnings=[]
-    if negative: warnings.append('Отрицательные '+', '.join(f'X{i}' for i in negative)+f' начиная с t≈{first_negative:.4g}. Этот участок решения нельзя трактовать как фактический ущерб.')
-    mins=np.min(DATA['normalized'],axis=0);maxs=np.max(DATA['normalized'],axis=0)
-    outside=np.any((states<mins[:,None])|(states>maxs[:,None]),axis=1)
-    # Extrapolation is reported in diagnostics, not a repetitive primary-screen banner.
-    if np.any(ff<0): warnings.append('Есть отрицательные значения внешних факторов. Проверьте их интерпретацию и формулы.')
-    if difference is not None and difference>1e-5: warnings.append('При удвоении числа шагов изменение превышает 1e−5. Увеличьте число шагов.')
-    comparison=None
-    if abs(T-.7)<1e-12 and (np.allclose(p['initial'],DATA['normalized'][0],rtol=0,atol=1e-12) or np.allclose(p['initial'],DATA['article_initial'],rtol=0,atol=1e-12)):
-        observed=np.array(DATA['normalized']).T
-        estimated=np.array([np.interp(np.arange(8)/10,t,row) for row in states])
-        error=100*np.abs(estimated-observed)/observed
-        comparison=dict(estimated=estimated.tolist(),mape=error.mean(axis=1).tolist(),max_error=error.max(axis=1).tolist())
-    return dict(parameters=p,t=t.tolist(),series=states.tolist(),forcing=ff.tolist() if p['model']=='full' else [],criterion=y[15].tolist(),
-        snapshots=[dict(t=float(t[k]),tau=k/n,values=states[:,k].tolist()) for k in [0,n//4,n//2,3*n//4,n]],
-        comparison=comparison,diagnostics=dict(negative=negative,first_negative=first_negative,minimum=float(states.min()),
-            step_difference=difference,model=p['model'],outside_range=[int(i+1) for i in np.where(outside)[0]],valid_physical=not negative and not np.any(ff<0)),warnings=warnings)
+
+def simulate(raw=None):
+    p = validate_parameters(raw or {})
+    funcs = p['resolved_functions']
+    perts = p['perturbations']
+    limits = p['limits']
+    equations = DATA['equations']
+    T = p['duration']
+    n = p['steps']
+    h = T / n
+
+    fn_list = [None] * 79
+    for k in range(1, 79):
+        fk = funcs[str(k)]
+        fn_list[k] = (fk['input'] - 1, fk['c2'], fk['c1'], fk['c0'])
+
+    def rhs(t, state):
+        E = [eval_perturbation(perts[m], t) for m in range(5)]
+        out = [0.0] * 16
+        j_sum = 0.0
+        for i in range(15):
+            eq = equations[i]
+            if eq['positive']:
+                pos = 1.0
+                for k in eq['positive']:
+                    idx, c2, c1, c0 = fn_list[k]
+                    u = state[idx]
+                    pos *= (c2 * u + c1) * u + c0
+                if eq['external_positive']:
+                    pos *= sum(E[m - 1] for m in eq['external_positive'])
+            else:
+                pos = 0.0
+
+            if eq['external_subtract']:
+                neg = sum(E[m - 1] for m in eq['external_subtract'])
+            elif eq['negative']:
+                neg = 1.0
+                for k in eq['negative']:
+                    idx, c2, c1, c0 = fn_list[k]
+                    u = state[idx]
+                    neg *= (c2 * u + c1) * u + c0
+                if eq['external_negative']:
+                    neg *= sum(E[m - 1] for m in eq['external_negative'])
+            else:
+                neg = 0.0
+
+            dx = pos - neg
+            xi = state[i]
+            if xi <= 0.0 and dx < 0.0:
+                dx = 0.0
+            elif xi >= 1.0 and dx > 0.0:
+                dx = 0.0
+            out[i] = dx
+            diff = xi - limits[i]
+            j_sum += diff * diff
+        out[15] = j_sum / 15.0
+        return out
+
+    def clamp_state(vec):
+        res = vec[:]
+        for i in range(15):
+            if res[i] < 0.0:
+                res[i] = 0.0
+            elif res[i] > 1.0:
+                res[i] = 1.0
+        return res
+
+    t_grid = [round(k * h, 10) for k in range(n + 1)]
+    y = list(p['initial']) + [0.0]
+    series = [[y[i]] for i in range(15)]
+    criterion = [0.0]
+    forcing = [[eval_perturbation(perts[m], 0.0)] for m in range(5)]
+
+    for step in range(n):
+        t = step * h
+        k1 = rhs(t, y)
+        y2 = clamp_state([y[j] + 0.5 * h * k1[j] for j in range(16)])
+        k2 = rhs(t + 0.5 * h, y2)
+        y3 = clamp_state([y[j] + 0.5 * h * k2[j] for j in range(16)])
+        k3 = rhs(t + 0.5 * h, y3)
+        y4 = clamp_state([y[j] + h * k3[j] for j in range(16)])
+        k4 = rhs(t + h, y4)
+        y = clamp_state([y[j] + (h / 6.0) * (k1[j] + 2.0 * k2[j] + 2.0 * k3[j] + k4[j]) for j in range(16)])
+
+        t_next = t_grid[step + 1]
+        for i in range(15):
+            series[i].append(y[i])
+        criterion.append(max(0.0, y[15]))
+        for m in range(5):
+            forcing[m].append(eval_perturbation(perts[m], t_next))
+
+    snap_indices = [0, n // 4, n // 2, (3 * n) // 4, n]
+    snapshots = [
+        {
+            't': t_grid[idx],
+            'tau': idx / n,
+            'values': [series[i][idx] for i in range(15)],
+        }
+        for idx in snap_indices
+    ]
+
+    public_params = {k: v for k, v in p.items() if k != 'resolved_functions'}
+    return {
+        'parameters': public_params,
+        't': t_grid,
+        'series': series,
+        'forcing': forcing,
+        'criterion': criterion,
+        'snapshots': snapshots,
+    }
 
 
 def dispatch(request):
-    mode=request.get('action')
-    if mode=='preview':return preview(request)
-    if mode=='defaults':return DEFAULT
-    if mode=='simulate':return simulate(request.get('parameters',{}))
-    if mode=='experiments':
-        p=parameters(request.get('parameters',{}))
-        cases=[('Текущие значения',None,p['initial'])]+[(str(DATA['years'][i]),DATA['years'][i],DATA['normalized'][i]) for i in [1,3,5,7]]
-        return [dict(name=name,year=year,result=simulate({**p,'initial':initial})) for name,year,initial in cases]
+    if not isinstance(request, dict):
+        raise InputError('Некорректный запрос.')
+    action = request.get('action')
+    if action == 'defaults':
+        return deepcopy(DEFAULT)
+    if action == 'simulate':
+        return simulate(request.get('parameters', {}))
+    if action == 'experiments':
+        p = validate_parameters(request.get('parameters', {}))
+        base_params = {k: v for k, v in p.items() if k != 'resolved_functions'}
+        cases = [('Текущие условия', None, p['initial'])] + [
+            (f'{DATA["years"][idx]} г.', DATA['years'][idx], [round(float(v), 4) for v in DATA['normalized'][idx]])
+            for idx in (1, 3, 5, 7)
+        ]
+        return [
+            {
+                'name': name,
+                'year': year,
+                'result': simulate({**base_params, 'initial': init_vals}),
+            }
+            for name, year, init_vals in cases
+        ]
     raise InputError('Неизвестная операция.')
 
-if __name__=='__main__':
+
+if __name__ == '__main__':
     import sys
-    print(json.dumps(dispatch(json.load(sys.stdin)),ensure_ascii=False,allow_nan=False))
+    print(json.dumps(dispatch(json.load(sys.stdin)), ensure_ascii=False, allow_nan=False))

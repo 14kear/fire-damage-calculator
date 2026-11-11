@@ -1,29 +1,53 @@
-"""python server.py --port 8765; all calculations stay on this computer."""
-import sys,json,argparse
+"""Локальный HTTP-сервер калькулятора последствий пожаров (чистый Python 3, без сторонних пакетов).
+Запуск: python3 server.py --port 8765
+"""
+import argparse
+import json
+import sys
+from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from http.server import SimpleHTTPRequestHandler,ThreadingHTTPServer
-ROOT=Path(__file__).parent.resolve()
-STATIC=ROOT/'site' if (ROOT/'site').is_dir() else ROOT
-sys.path.insert(0,str(STATIC))
-try:from model import dispatch
-except ImportError:raise SystemExit('Установите библиотеки: python -m pip install -r requirements.txt')
+
+ROOT = Path(__file__).parent.resolve()
+sys.path.insert(0, str(ROOT))
+
+from model import InputError, dispatch  # noqa: E402
+
+
 class Handler(SimpleHTTPRequestHandler):
-    def __init__(self,*a,**kw):super().__init__(*a,directory=str(STATIC),**kw)
-    def send_json(self,payload,status=200):
-        body=json.dumps(payload,ensure_ascii=False,allow_nan=False).encode()
-        self.send_response(status);self.send_header('Content-Type','application/json; charset=utf-8');self.send_header('Content-Length',str(len(body)));self.end_headers();self.wfile.write(body)
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, directory=str(ROOT), **kwargs)
+
+    def send_json(self, payload, status=200):
+        body = json.dumps(payload, ensure_ascii=False, allow_nan=False).encode('utf-8')
+        self.send_response(status)
+        self.send_header('Content-Type', 'application/json; charset=utf-8')
+        self.send_header('Content-Length', str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
     def do_GET(self):
-        if self.path=='/api/health':self.send_json({'ok':True})
-        elif self.path.split('?',1)[0]=='/report.docx' and (ROOT/'Отчёт.docx').exists():
-            b=(ROOT/'Отчёт.docx').read_bytes();self.send_response(200);self.send_header('Content-Type','application/vnd.openxmlformats-officedocument.wordprocessingml.document');self.send_header('Content-Length',str(len(b)));self.end_headers();self.wfile.write(b)
-        else:super().do_GET()
+        if self.path == '/api/health':
+            self.send_json({'ok': True})
+        else:
+            super().do_GET()
+
     def do_POST(self):
-        if self.path!='/api/compute':self.send_json({'error':'Не найдено'},404);return
+        if self.path != '/api/compute':
+            self.send_json({'error': 'Не найдено'}, 404)
+            return
         try:
-            n=int(self.headers.get('Content-Length','0'))
-            if not 0<n<=1000000:raise ValueError('Некорректный запрос')
-            self.send_json({'result':dispatch(json.loads(self.rfile.read(n)))})
-        except (ValueError,TypeError,KeyError) as e:self.send_json({'error':str(e)},400)
-if __name__=='__main__':
-    p=argparse.ArgumentParser();p.add_argument('--port',type=int,default=8765);a=p.parse_args()
-    print(f'http://127.0.0.1:{a.port}',flush=True);ThreadingHTTPServer(('127.0.0.1',a.port),Handler).serve_forever()
+            length = int(self.headers.get('Content-Length', '0'))
+            if not (0 < length <= 1_000_000):
+                raise InputError('Некорректный размер запроса.')
+            req = json.loads(self.rfile.read(length).decode('utf-8'))
+            self.send_json({'result': dispatch(req)})
+        except (InputError, ValueError, TypeError, KeyError) as exc:
+            self.send_json({'error': str(exc)}, 400)
+
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description='Сервер моделирования последствий пожаров')
+    parser.add_argument('--port', type=int, default=8765)
+    args = parser.parse_args()
+    print(f'http://127.0.0.1:{args.port}', flush=True)
+    ThreadingHTTPServer(('127.0.0.1', args.port), Handler).serve_forever()

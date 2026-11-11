@@ -1,99 +1,159 @@
-import sys,math,unittest
+"""Автоматические тесты математической модели системной динамики пожаров (чистый Python 3 unittest)."""
+import json
+import math
+import sys
+import time
+import unittest
 from pathlib import Path
-import numpy as np
-ROOT=Path(__file__).parent
-sys.path.insert(0,str(ROOT/'site' if (ROOT/'site').is_dir() else ROOT))
-import model as m
 
-class ModelTests(unittest.TestCase):
-    def test_complete_article_example_requires_only_numbers(self):
-        r=m.simulate({})
-        self.assertEqual(r['parameters']['initial'],m.DATA['article_initial'])
-        self.assertEqual(r['forcing'],[])
-        self.assertEqual(r['parameters']['external_start'],[])
-        np.testing.assert_allclose([r['series'][i][-1] for i in [0,1,2,8]],[1.398636244496,1.463543803775,1.129550082403,.804545343336],atol=2e-10,rtol=0)
-        self.assertAlmostEqual(r['criterion'][-1],.09306763004434,places=10)
-    def test_literal_x9_derivative_matches_printed_polynomial(self):
-        p=m.parameters({});rhs,_=m.prepare(p)
-        self.assertAlmostEqual(rhs(0,np.r_[p['initial'],0])[8],.791+.374*.609-.421*.609**2,places=13)
-    def test_full_model_does_not_invent_missing_factors(self):
-        with self.assertRaises(m.InputError):m.simulate({'model':'full'})
-        with self.assertRaises(m.InputError):m.simulate({'model':'full','external_start':['0']*5,'external_slope':['']*5})
-    def test_external_parameters_are_numbers_and_affine(self):
-        p=m.parameters({'model':'full','external_start':[.1,.2,.3,.4,.5],'external_slope':[.1,-.2,.3,0,-.1]})
-        _,f=m.prepare(p);np.testing.assert_allclose(f(.7),[.17,.06,.51,.4,.43])
-        with self.assertRaises(m.InputError):m.parameters({'model':'full','external_start':['2*t']*5,'external_slope':[0]*5})
-        with self.assertRaises(m.InputError):m.parameters({'model':'full','external_start':[0]*5,'external_slope':[-1]*5})
-    def test_external_brigade_factor_changes_only_expected_derivatives(self):
-        p=m.parameters({'model':'full','external_start':[0]*5,'external_slope':[0]*5});a,_=m.prepare(p)
-        p2={**p,'external_start':[0,.1,0,0,0]};b,_=m.prepare(p2);y=np.r_[p['initial'],0]
-        np.testing.assert_allclose((b(0,y)-a(0,y))[:3],[-.1]*3)
-        np.testing.assert_allclose((b(0,y)-a(0,y))[3:],0)
-    def test_source_versions_are_not_silently_equated(self):
-        a=m.simulate({});b=m.simulate({'model':'full','external_start':[0]*5,'external_slope':[0]*5})
-        self.assertGreater(abs(a['series'][8][-1]-b['series'][8][-1]),.5)
-        self.assertIn(8,b['diagnostics']['negative']);self.assertLess(b['series'][7][-1],0)
-    def test_regression_is_reproducible(self):
-        p=m.fit_coefficients()[6]
-        np.testing.assert_allclose(p['coefficients'],[.7910939134302122,.373946742672281,-.420939918485693],rtol=1e-11)
-        self.assertAlmostEqual(p['r2'],.30153274419638676,places=12)
-    def test_normalization_units(self):
-        raw=np.array(m.DATA['raw']);scales=np.array(m.DATA['scales'])
-        np.testing.assert_allclose(raw.max(axis=0),scales)
-        np.testing.assert_allclose(np.array(m.DATA['normalized'])*scales,raw)
-    def test_rk4_order_on_known_solution(self):
-        _,a=m.rk4(lambda t,y:-y,[1.],1.,20);_,b=m.rk4(lambda t,y:-y,[1.],1.,40)
-        ratio=abs(a[0,-1]-math.exp(-1))/abs(b[0,-1]-math.exp(-1))
-        self.assertGreater(ratio,15);self.assertLess(ratio,18)
-    def test_two_solvers_and_refinement_agree(self):
-        a=m.simulate({});b=m.simulate({'method':'RK45'})
-        np.testing.assert_allclose(a['series'],b['series'],atol=2e-8,rtol=0)
-        self.assertAlmostEqual(a['criterion'][-1],b['criterion'][-1],places=9)
-        self.assertLess(a['diagnostics']['step_difference'],1e-9)
-    def test_experiments_include_current_input_and_keep_settings(self):
-        initial=m.DATA['article_initial'].copy();initial[0]=.7
-        r=m.dispatch({'action':'experiments','parameters':{'initial':initial,'duration':.4}})
-        self.assertEqual(r[0]['name'],'Текущие значения')
-        self.assertEqual([q['year'] for q in r],[None,2016,2018,2020,2022])
-        self.assertEqual(r[0]['result']['series'][0][0],.7)
-        for q in r:self.assertEqual(q['result']['t'][-1],.4);self.assertEqual(q['result']['parameters']['model'],'article')
-    def test_invalid_inputs_are_rejected(self):
-        for p in [{'initial':[1]},{'steps':201},{'duration':0},{'weights':[0]*15},{'model':'unknown'},{'duration':'1+1'}]:
-            with self.subTest(p=p):
-                with self.assertRaises(m.InputError):m.parameters(p)
-    def test_no_code_execution_in_arithmetic_parser(self):
-        for s in ['__import__("os")','u.__class__','[u][0]','10**1000','1/0']:
-            with self.subTest(s=s):
-                with self.assertRaises(m.InputError):m.Expression(s,{'u'},'test')({'u':1})
+ROOT = Path(__file__).parent.resolve()
+sys.path.insert(0, str(ROOT))
 
-class EditorTests(unittest.TestCase):
-    def test_all_article_functions_preserve_source_rhs(self):
-        for values in [[.1]*15,[.5]*15,[1]*15,np.linspace(.1,.9,15).tolist(),m.DATA['article_initial']]:
-            p=m.parameters({'initial':values});rhs,_=m.prepare(p)
-            expected=[m.Expression(s,{f'x{i}' for i in range(1,16)},'source')({f'x{i}':values[i-1] for i in range(1,16)}) for s in m.ARTICLE]
-            np.testing.assert_allclose(rhs(0,np.r_[p['initial'],0])[:15],expected,atol=1e-12,rtol=1e-10)
-    def test_edit_affects_only_its_equation_derivative(self):
-        p=m.parameters({});a,_=m.prepare(p);b,_=m.prepare(m.parameters({'functions':{'1':{'kind':'constant','a':0}}}))
-        y=np.r_[p['initial'],0];self.assertEqual(b(0,y)[0],0);np.testing.assert_allclose(a(0,y)[1:],b(0,y)[1:])
-    def test_preview_and_calculation_use_same_custom_function(self):
-        spec={'kind':'custom','expression':'0.5 + sin(u)'}
-        r=m.preview({'function_id':'1','function':spec})
-        self.assertAlmostEqual(r['values'][-1],.5+math.sin(1))
-        p=m.parameters({'functions':{'1':spec}});rhs,_=m.prepare(p);self.assertTrue(np.isfinite(rhs(0,np.r_[p['initial'],0])).all())
-    def test_edits_survive_experiment_series(self):
-        spec={'1':{'kind':'constant','a':0}}
-        r=m.dispatch({'action':'experiments','parameters':{'functions':spec}})
-        for q in r:self.assertAlmostEqual(q['result']['series'][0][0],q['result']['series'][0][-1])
-    def test_normalized_inputs_and_targets_reject_outside_range(self):
-        for key in ['initial','target','weights']:
-            with self.assertRaises(m.InputError):m.parameters({key:[1.01]*15})
-    def test_custom_expression_rejects_unsafe_or_undefined(self):
-        for source in ['__import__("os")','u.__class__','1/(u-0.5)','log(u)']:
-            with self.assertRaises(m.InputError):m.preview({'function':{'kind':'custom','expression':source}})
-    def test_function_forms(self):
-        for kind,answer in [('quadratic',6),('linear',3),('constant',1),('exponential',math.exp(2)+3)]:
-            r=m.preview({'function':{'kind':kind,'a':1,'b':2,'c':3}});self.assertAlmostEqual(r['values'][-1],answer)
-    def test_normalized_external_endpoints(self):
-        with self.assertRaises(m.InputError):m.parameters({'model':'full','external_start':[1]*5,'external_slope':[.1]*5})
+import model as m  # noqa: E402
 
-if __name__=='__main__':unittest.main(verbosity=2)
+
+class FireDamageModelTests(unittest.TestCase):
+    def test_defaults_structure_and_bounds(self):
+        d = m.dispatch({'action': 'defaults'})
+        self.assertEqual(d['duration'], 1.0)
+        self.assertEqual(len(d['initial']), 15)
+        self.assertEqual(len(d['limits']), 15)
+        self.assertEqual(len(d['perturbations']), 5)
+        for v in d['initial']:
+            self.assertTrue(0.0 <= v <= 1.0)
+        for v in d['limits']:
+            self.assertTrue(0.0 <= v <= 1.0)
+
+    def test_all_78_base_functions_loaded_cleanly(self):
+        self.assertEqual(len(m.BASE_FUNCTIONS), 78)
+        for k in range(1, 79):
+            fn = m.BASE_FUNCTIONS[str(k)]
+            self.assertEqual(fn['id'], k)
+            self.assertTrue(1 <= fn['input'] <= 15)
+            self.assertTrue(1 <= fn['target'] <= 15)
+            for coef in ('c2', 'c1', 'c0'):
+                self.assertTrue(math.isfinite(fn[coef]))
+        # Проверка очистки машинного нуля в f72 и f78
+        self.assertEqual(m.BASE_FUNCTIONS['72']['c2'], 0.0)
+        self.assertEqual(m.BASE_FUNCTIONS['72']['c0'], 0.0)
+        self.assertEqual(m.BASE_FUNCTIONS['78']['c2'], 0.0)
+        self.assertEqual(m.BASE_FUNCTIONS['78']['c0'], 0.0)
+
+    def test_default_simulation_stays_strictly_in_0_1(self):
+        r = m.simulate({})
+        self.assertEqual(len(r['t']), 201)
+        self.assertEqual(r['t'][0], 0.0)
+        self.assertEqual(r['t'][-1], 1.0)
+        self.assertEqual(len(r['series']), 15)
+        self.assertEqual(len(r['forcing']), 5)
+        self.assertEqual(len(r['snapshots']), 5)
+        for i in range(15):
+            for val in r['series'][i]:
+                self.assertTrue(0.0 <= val <= 1.0, f'X{i + 1} вышло за [0, 1]: {val}')
+        for idx in range(5):
+            for val in r['forcing'][idx]:
+                self.assertTrue(0.0 <= val <= 1.0, f'E{idx + 1} вышло за [0, 1]: {val}')
+        self.assertGreaterEqual(r['criterion'][-1], 0.0)
+        # Сериализация без NaN/Infinity
+        encoded = json.dumps(r, allow_nan=False)
+        self.assertGreater(len(encoded), 100)
+
+    def test_rejects_values_above_1_or_below_0(self):
+        # Начальные условия > 1 или < 0
+        with self.assertRaises(m.InputError):
+            m.validate_parameters({'initial': [1.01] + [0.5] * 14})
+        with self.assertRaises(m.InputError):
+            m.validate_parameters({'initial': [-0.01] + [0.5] * 14})
+
+        # Допустимые значения > 1 или < 0
+        with self.assertRaises(m.InputError):
+            m.validate_parameters({'limits': [1.5] + [0.5] * 14})
+        with self.assertRaises(m.InputError):
+            m.validate_parameters({'limits': [-0.2] + [0.5] * 14})
+
+        # Интервал T > 1 или <= 0
+        with self.assertRaises(m.InputError):
+            m.validate_parameters({'duration': 1.2})
+        with self.assertRaises(m.InputError):
+            m.validate_parameters({'duration': 0.0})
+
+        # Параметры возмущений > 1 или < 0
+        bad_perts = [{'a': 0, 'b': 0, 'c': 1.1}] + [{'a': 0, 'b': 0, 'c': 0.2}] * 4
+        with self.assertRaises(m.InputError):
+            m.validate_parameters({'perturbations': bad_perts})
+        neg_perts = [{'a': -0.1, 'b': 0, 'c': 0.2}] + [{'a': 0, 'b': 0, 'c': 0.2}] * 4
+        with self.assertRaises(m.InputError):
+            m.validate_parameters({'perturbations': neg_perts})
+
+    def test_perturbations_affect_dynamics_physically(self):
+        # Увеличение сил пожарной охраны E2 и инструктажей E5 снижает потери X1, X2, X3
+        low_safety = [
+            {'a': 0.0, 'b': 0.0, 'c': 0.8},  # E1 (АХОВ высокий)
+            {'a': 0.0, 'b': 0.0, 'c': 0.05}, # E2 (силы ПО малые)
+            {'a': 0.0, 'b': 0.0, 'c': 0.2},
+            {'a': 0.0, 'b': 0.0, 'c': 0.2},
+            {'a': 0.0, 'b': 0.0, 'c': 0.05}, # E5 (инструктажи малые)
+        ]
+        high_safety = [
+            {'a': 0.0, 'b': 0.0, 'c': 0.2},  # E1 (АХОВ малый)
+            {'a': 0.0, 'b': 0.0, 'c': 0.8},  # E2 (силы ПО высокие)
+            {'a': 0.0, 'b': 0.0, 'c': 0.2},
+            {'a': 0.0, 'b': 0.0, 'c': 0.2},
+            {'a': 0.0, 'b': 0.0, 'c': 0.8},  # E5 (инструктажи высокие)
+        ]
+        init = [0.6] * 15
+        r_bad = m.simulate({'initial': init, 'perturbations': low_safety})
+        r_good = m.simulate({'initial': init, 'perturbations': high_safety})
+        for idx in (0, 1, 2):
+            self.assertLess(r_good['series'][idx][-1], r_bad['series'][idx][-1])
+
+    def test_inline_function_coefficients_editing(self):
+        init = [0.5] * 15
+        # Если f47 (единственная функция в dX9/dt = f47(X5)*(E3+E4)) равна 0, то X9 остаётся постоянным = 0.5
+        r = m.simulate({
+            'initial': init,
+            'functions': {'47': {'c2': 0.0, 'c1': 0.0, 'c0': 0.0}},
+        })
+        self.assertAlmostEqual(r['series'][8][0], 0.5, places=10)
+        self.assertAlmostEqual(r['series'][8][-1], 0.5, places=10)
+
+        # Если f47 = 1.0 и E3+E4 > 0, то X9 возрастает
+        r2 = m.simulate({
+            'initial': init,
+            'functions': {'47': {'c2': 0.0, 'c1': 0.0, 'c0': 1.0}},
+        })
+        self.assertGreater(r2['series'][8][-1], 0.5)
+
+    def test_series_experiments_fast_and_consistent(self):
+        t0 = time.perf_counter()
+        init = [0.42] * 15
+        res = m.dispatch({
+            'action': 'experiments',
+            'parameters': {
+                'initial': init,
+                'duration': 0.8,
+                'functions': {'1': {'c2': 0.0, 'c1': 0.0, 'c0': 0.5}},
+            },
+        })
+        elapsed_ms = (time.perf_counter() - t0) * 1000.0
+        self.assertLess(elapsed_ms, 500.0, f'Серия считается слишком долго: {elapsed_ms:.1f} мс')
+        self.assertEqual(len(res), 5)
+        self.assertEqual(res[0]['name'], 'Текущие условия')
+        self.assertEqual([item['year'] for item in res], [None, 2016, 2018, 2020, 2022])
+        self.assertEqual(res[0]['result']['series'][0][0], 0.42)
+        for item in res:
+            self.assertEqual(item['result']['t'][-1], 0.8)
+
+    def test_normalization_matches_excel_source(self):
+        raw = m.DATA['raw']
+        scales = m.DATA['scales']
+        norm = m.DATA['normalized']
+        for col in range(15):
+            col_max = max(row[col] for row in raw)
+            self.assertAlmostEqual(col_max, scales[col], places=6)
+            for r_idx in range(len(raw)):
+                self.assertAlmostEqual(norm[r_idx][col] * scales[col], raw[r_idx][col], places=5)
+
+
+if __name__ == '__main__':
+    unittest.main(verbosity=2)
