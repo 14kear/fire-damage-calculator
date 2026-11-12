@@ -1632,16 +1632,8 @@ async function init() {
     });
   });
 
-  // Экспорт CSV (а генерация .docx доступна только отдельно по параметру ?report=1 для авторов проекта)
+  // Экспорт таблицы в CSV
   $('#download-csv')?.addEventListener('click', downloadCSV);
-  if (new URLSearchParams(window.location.search).has('report')) {
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = 'btn-outline';
-    btn.textContent = 'Скачать отчёт (.docx)';
-    btn.addEventListener('click', generateDocxReport);
-    $('.header-links')?.prepend(btn);
-  }
 
   // Мгновенный первичный расчёт при открытии страницы
   runCalculation('Готово. Все параметры и 78 функций доступны на одном экране.');
