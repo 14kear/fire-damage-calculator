@@ -1495,7 +1495,7 @@ async function generateDocxReport() {
 
 /* === СОБЫТИЯ И ИНИЦИАЛИЗАЦИЯ === */
 async function init() {
-  const resp = await fetch('./source_data.json?v=20261112-final');
+  const resp = await fetch('./source_data.json?v=20261113');
   if (!resp.ok) throw new Error('Не удалось загрузить source_data.json');
   D = await resp.json();
   BASE_FUNCS = buildBaseFunctions();
@@ -1632,11 +1632,16 @@ async function init() {
     });
   });
 
-  // Кнопки отчёта .docx и CSV
-  $('#download-docx-top').addEventListener('click', generateDocxReport);
-  $('#download-docx-bottom').addEventListener('click', generateDocxReport);
-  $('#footer-docx-link').addEventListener('click', e => { e.preventDefault(); generateDocxReport(); });
-  $('#download-csv').addEventListener('click', downloadCSV);
+  // Экспорт CSV (а генерация .docx доступна только отдельно по параметру ?report=1 для авторов проекта)
+  $('#download-csv')?.addEventListener('click', downloadCSV);
+  if (new URLSearchParams(window.location.search).has('report')) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'btn-outline';
+    btn.textContent = 'Скачать отчёт (.docx)';
+    btn.addEventListener('click', generateDocxReport);
+    $('.header-links')?.prepend(btn);
+  }
 
   // Мгновенный первичный расчёт при открытии страницы
   runCalculation('Готово. Все параметры и 78 функций доступны на одном экране.');
